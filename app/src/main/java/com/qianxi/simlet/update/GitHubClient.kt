@@ -10,7 +10,6 @@ import java.net.URL
 data class ReleaseInfo(
     val tagName: String,
     val versionName: String,
-    val notes: String,
     val pageUrl: String,
     val apkUrl: String?
 )
@@ -95,7 +94,6 @@ object GitHubClient {
         return ReleaseInfo(
             tagName = tag,
             versionName = tag.removePrefix("v"),
-            notes = json.optString("body"),
             pageUrl = json.optString("html_url"),
             apkUrl = apk
         )

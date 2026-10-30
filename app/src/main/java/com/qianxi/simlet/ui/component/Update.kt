@@ -192,8 +192,10 @@ private fun describe(state: UpdateState): Pair<String?, String?> = when (state) 
     UpdateState.Checking -> stringResource(R.string.update_checking) to null
     UpdateState.UpToDate -> stringResource(R.string.update_up_to_date) to null
     is UpdateState.Available -> stringResource(R.string.update_available, state.release.versionName) to
-        (state.release.notes.takeIf { it.isNotBlank() }
-            ?: stringResource(R.string.update_no_asset).takeIf { state.release.apkUrl == null })
+        // 发布说明是 GitHub 上的 markdown，长度不受我们控制：整段铺进这一行会把
+        // 下面的「下载升级包」挤出屏幕（实测 v1.0.0 的正文就把它顶没了）。
+        // 要看说明走「打开发布页」那一行，由浏览器渲染。
+        stringResource(R.string.update_no_asset).takeIf { state.release.apkUrl == null }
 
     UpdateState.NoRelease -> stringResource(R.string.update_no_release) to
         stringResource(R.string.update_no_release_detail)
