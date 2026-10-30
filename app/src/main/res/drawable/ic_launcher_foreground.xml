@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SIM 卡轮廓 + 信号折线，108x108 安全区内 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+        android:width="108dp"
+        android:height="108dp"
+        android:viewportWidth="108"
+        android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,30 h26 a6,6 0 0 1 6,6 v8 l10,6 v34 a6,6 0 0 1 -6,6 h-36 a6,6 0 0 1 -6,-6 v-48 a6,6 0 0 1 6,-6 z M40,52 h18 v14 h-18 z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M74,34 a14,14 0 0 1 0,20 l3,3 a18,18 0 0 0 0,-26 z"/>
+</vector>

@@ -1,0 +1,41 @@
+# 构建产物
+.gradle/
+build/
+*/build/
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+
+# IDE 与系统
+.idea/
+*.iml
+.DS_Store
+*.swp
+
+# 本机配置与签名材料：口令、证书、SDK 路径，一律不入库
+local.properties
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.p8
+*.pem
+*.key
+
+# 内部过程稿（评审记录、真机走查结论），对外发布时不带走
+notes/
+
+# 日志与真机调试残留
+*.log
+window_dump.xml
+/sdcard_export/
+
+# 根目录的散图与录屏是走查临时件；正式素材在 app/src/main/res 与 docs/screenshots
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
+/*.mp4

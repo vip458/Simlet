@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- 与 ApkInstaller.updatesDir 指向同一个目录，改一处要同时改另一处。 -->
+    <external-files-path
+            name="updates"
+            path="updates/"/>
+</paths>

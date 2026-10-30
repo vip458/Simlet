@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Simlet</string>
+
+    <!-- 通用 -->
+    <string name="action_refresh">刷新</string>
+    <string name="action_help">帮助</string>
+    <string name="action_settings">设置</string>
+    <string name="action_back">返回</string>
+    <string name="action_retry">重试</string>
+    <string name="action_save">保存</string>
+    <string name="action_writing">写入中</string>
+    <string name="action_restore">还原</string>
+    <string name="badge_current">当前</string>
+    <plurals name="count_items">
+        <item quantity="one">%1$d 个</item>
+        <item quantity="other">%1$d 个</item>
+    </plurals>
+
+    <!-- 首页 -->
+    <string name="status_loading">读取中</string>
+    <string name="status_connected">已连接</string>
+    <string name="status_failed">读取失败</string>
+    <string name="section_sim_cards">选择 SIM 卡</string>
+    <string name="sim_slot">卡 %1$d</string>
+    <string name="sim_row">卡 %1$d · %2$s</string>
+    <string name="override_state_on">已覆盖</string>
+    <string name="real_operator">真实：%1$s</string>
+    <string name="sim_empty">未检测到可用 SIM 卡，请确认已插卡后下拉刷新</string>
+    <string name="section_country">目标国家码</string>
+    <string name="write_country">写入 %1$s · %2$s</string>
+    <string name="country_custom_fallback">自定义</string>
+    <string name="country_none">不改国家码</string>
+    <string name="section_operator">运营商名称</string>
+    <string name="override_to">覆盖为</string>
+    <string name="keep_current">不修改</string>
+    <string name="chip_keep">不改</string>
+    <string name="chip_more">更多</string>
+    <string name="chip_custom">自定义</string>
+    <string name="operator_unknown">未知运营商</string>
+    <string name="operator_cmcc">中国移动</string>
+    <string name="operator_cucc">中国联通</string>
+    <string name="operator_ctcc">中国电信</string>
+    <string name="operator_cbn">中国广电</string>
+
+    <!-- 弹层 -->
+    <string name="sheet_region_title">选择国家 / 地区</string>
+    <string name="sheet_region_search">搜索名称或两位代码</string>
+    <string name="sheet_custom_code">自定义代码</string>
+    <string name="sheet_custom_name">自定义名称</string>
+    <string name="sheet_two_letters">两位字母</string>
+    <string name="sheet_write_code">写入 %1$s</string>
+    <string name="sheet_apply">应用</string>
+    <string name="sheet_operator_title">选择运营商</string>
+    <string name="sheet_operator_search">搜索运营商或国家</string>
+    <string name="sheet_only_region">只看 %1$s</string>
+    <string name="sheet_no_region_hint">未选国家码，显示全部 %1$d 个预设</string>
+
+    <!-- 环境自检 -->
+    <string name="setup_need_install_title">需要安装 Shizuku</string>
+    <string name="setup_need_install_detail">Simlet 通过 Shizuku 借取系统权限修改运营商配置，不需要 Root，随时可还原。</string>
+    <string name="setup_service_down_title">Shizuku 未运行</string>
+    <string name="setup_service_down_detail">本机已安装 Shizuku，请先启动它（无线调试或电脑 adb 均可），再回到 Simlet。</string>
+    <string name="setup_permission_title">需要 Shizuku 授权</string>
+    <string name="setup_permission_detail">服务已在运行。点击下方按钮后，在 Shizuku 的授权弹窗中选择允许。</string>
+    <string name="setup_old_server_title">Shizuku 版本过低</string>
+    <string name="setup_old_server_detail">Android 16/17 上的写入依赖新版权限委托能力，请升级到 Shizuku 13.6.0 以上。</string>
+    <string name="setup_title">环境自检</string>
+    <string name="setup_env_check">环境自检</string>
+    <string name="setup_android_version">系统版本</string>
+    <string name="setup_android_value">Android %1$s (API %2$d)</string>
+    <string name="setup_android_value_newer">Android %1$s 或更新 (API %2$d)</string>
+    <string name="setup_shizuku_service">Shizuku 服务</string>
+    <string name="setup_running">运行中</string>
+    <string name="setup_not_running">未运行</string>
+    <string name="setup_shizuku_version">Shizuku 版本</string>
+    <string name="setup_unknown">未知</string>
+    <string name="setup_granted">已授权</string>
+    <string name="setup_not_granted">未授权</string>
+    <string name="setup_delegate_ok">支持权限委托</string>
+    <string name="setup_delegate_old">需升级 Shizuku</string>
+    <string name="setup_action_get">获取 Shizuku</string>
+    <string name="setup_action_open">打开 Shizuku</string>
+    <string name="setup_action_request">请求授权</string>
+    <string name="setup_action_upgrade">获取新版本</string>
+    <string name="setup_recheck">重新检测</string>
+    <string name="toast_shizuku_first">请先启动 Shizuku 服务</string>
+    <string name="toast_permission_denied">未授予 Shizuku 权限</string>
+
+    <!-- 设置 -->
+    <string name="settings_title">设置</string>
+    <string name="settings_appearance">外观</string>
+    <string name="settings_night_mode">明暗模式</string>
+    <string name="night_follow">跟随系统</string>
+    <string name="night_light">浅色</string>
+    <string name="night_dark">深色</string>
+    <string name="settings_language">语言</string>
+    <string name="lang_follow">跟随系统</string>
+    <string name="lang_zh">中文</string>
+    <string name="lang_en">English</string>
+    <string name="settings_about_group">关于</string>
+    <string name="settings_open_about">关于 Simlet</string>
+
+    <!-- 更新 -->
+    <string name="settings_update_group">更新</string>
+    <string name="update_check">检查更新</string>
+    <string name="update_current">当前版本 v%1$s</string>
+    <string name="update_checking">正在检查…</string>
+    <string name="update_up_to_date">已是最新版本</string>
+    <string name="update_available">发现新版本 v%1$s</string>
+    <string name="update_ready">安装包已就绪 v%1$s</string>
+    <string name="update_channel_group">更新渠道</string>
+    <string name="update_no_release">仓库暂无发布版本</string>
+    <string name="update_no_release_detail">还没有发布过任何版本</string>
+    <string name="update_rate_limited">请求受限</string>
+    <string name="update_rate_limited_detail">请求过于频繁，稍后再试</string>
+    <string name="update_failed">检查失败</string>
+    <string name="update_download_failed">下载未完成</string>
+    <string name="update_no_asset">这个版本没有上传安装包，去发布页手动下载</string>
+    <string name="update_download">下载升级包</string>
+    <string name="update_downloading">下载中 %1$d%%</string>
+    <string name="update_install">立即安装</string>
+    <string name="update_install_blocked">需要允许安装未知应用</string>
+    <string name="update_install_blocked_detail">系统尚未授予「安装未知应用」，先前往设置打开</string>
+    <string name="update_open_page">查看发布页</string>
+    <string name="update_channel">公众号渠道</string>
+    <string name="update_channel_detail">发版通知，安装包以发布页为准</string>
+    <string name="update_channel_account">公众号</string>
+    <string name="update_channel_name">知果核</string>
+    <string name="update_channel_copy">复制名称</string>
+    <string name="update_channel_qr">公众号二维码</string>
+    <string name="update_copied">已复制</string>
+
+    <!-- 首页帮助弹层：使用提示从关于页搬来，就地看，不用跳走 -->
+    <string name="help_title">使用提示</string>
+    <string name="help_body">· 保存后建议开关一次飞行模式，让运营商重新读取配置\n· 手机重启后会自动补写一次，无需重复设置\n· 双卡可对每张卡分别设置，互不影响\n· 部分定制系统禁用了对应接口，个别机型无法生效属正常现象</string>
+
+    <!-- 关于：只留版本、开发者、许可、项目主页 -->
+    <string name="about_title">关于</string>
+    <string name="about_version">Simlet v%1$s</string>
+    <string name="about_version_line">Version: %1$s</string>
+    <string name="about_developer_line">开发者：千喜</string>
+    <string name="about_service_group">服务与条款</string>
+    <string name="about_footer">本应用以 Apache-2.0 协议开源\n图标来自 Reicon（MIT）</string>
+    <string name="about_summary">免 Root 的 SIM 卡国家码与运营商名称修改工具。修改的是系统读取到的运营商配置，不会写入 SIM 卡本身，随时可以还原。</string>
+    <string name="about_developer">开发者</string>
+    <string name="about_developer_name">千喜</string>
+    <string name="about_license">开源许可</string>
+    <string name="about_privacy">权限与数据</string>
+    <string name="about_privacy_body">所有 SIM 操作经 Shizuku 授权完成，不申请运行时权限；除检查更新外不发任何网络请求，数据只存本机。</string>
+    <string name="about_project">项目主页</string>
+
+    <!-- 结果与报错：标题本地化，系统原文留在详情行 -->
+    <string name="done_saved">已保存并生效</string>
+    <string name="done_restored">已还原卡 %1$d 的全部覆盖</string>
+    <string name="need_choice">请先选择国家码或填写运营商名称</string>
+    <string name="err_permission">权限不足，请在 Shizuku 中重新授权本应用</string>
+    <string name="err_failed">操作未成功</string>
+    <string name="err_failed_hint">操作失败，请下拉刷新后重试</string>
+</resources>

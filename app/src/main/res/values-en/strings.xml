@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 通用 -->
+    <string name="action_refresh">Refresh</string>
+    <string name="action_help">Help</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_back">Back</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_save">Save</string>
+    <string name="action_writing">Writing</string>
+    <string name="action_restore">Restore</string>
+    <string name="badge_current">Current</string>
+    <plurals name="count_items">
+        <item quantity="one">%1$d item</item>
+        <item quantity="other">%1$d items</item>
+    </plurals>
+
+    <!-- 首页 -->
+    <string name="status_loading">Reading</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_failed">Read failed</string>
+    <string name="section_sim_cards">SIM cards</string>
+    <string name="sim_slot">SIM %1$d</string>
+    <string name="sim_row">SIM %1$d · %2$s</string>
+    <string name="override_state_on">Overridden</string>
+    <string name="real_operator">Real: %1$s</string>
+    <string name="sim_empty">No usable SIM card found. Insert a SIM, then pull to refresh.</string>
+    <string name="section_country">Country code</string>
+    <string name="write_country">Set to %1$s · %2$s</string>
+    <string name="country_custom_fallback">Custom</string>
+    <string name="country_none">Keep country code</string>
+    <string name="section_operator">Operator name</string>
+    <string name="override_to">Override to</string>
+    <string name="keep_current">Keep current</string>
+    <string name="chip_keep">Keep</string>
+    <string name="chip_more">More</string>
+    <string name="chip_custom">Custom</string>
+    <string name="operator_unknown">Unknown operator</string>
+    <string name="operator_cmcc">China Mobile</string>
+    <string name="operator_cucc">China Unicom</string>
+    <string name="operator_ctcc">China Telecom</string>
+    <string name="operator_cbn">China Broadnet</string>
+
+    <!-- 弹层 -->
+    <string name="sheet_region_title">Choose country / region</string>
+    <string name="sheet_region_search">Search name or two-letter code</string>
+    <string name="sheet_custom_code">Custom code</string>
+    <string name="sheet_custom_name">Custom name</string>
+    <string name="sheet_two_letters">Two letters</string>
+    <string name="sheet_write_code">Set %1$s</string>
+    <string name="sheet_apply">Apply</string>
+    <string name="sheet_operator_title">Choose operator</string>
+    <string name="sheet_operator_search">Search operator or country</string>
+    <string name="sheet_only_region">Only %1$s</string>
+    <string name="sheet_no_region_hint">No country selected — showing all %1$d presets</string>
+
+    <!-- 环境自检 -->
+    <string name="setup_need_install_title">Shizuku is required</string>
+    <string name="setup_need_install_detail">Simlet borrows system permission through Shizuku to change the carrier config. No root, and every change is reversible.</string>
+    <string name="setup_service_down_title">Shizuku is not running</string>
+    <string name="setup_service_down_detail">Shizuku is installed on this device. Start it (wireless debugging or adb from a computer), then come back to Simlet.</string>
+    <string name="setup_permission_title">Shizuku authorization needed</string>
+    <string name="setup_permission_detail">The service is already running. Tap the button below, then allow Simlet in the Shizuku permission dialog.</string>
+    <string name="setup_old_server_title">Shizuku is too old</string>
+    <string name="setup_old_server_detail">Writing on Android 16/17 relies on the new permission delegation, available from Shizuku 13.6.0.</string>
+    <string name="setup_title">Environment check</string>
+    <string name="setup_env_check">Environment check</string>
+    <string name="setup_android_version">Android version</string>
+    <string name="setup_android_value">Android %1$s (API %2$d)</string>
+    <string name="setup_android_value_newer">Android %1$s or newer (API %2$d)</string>
+    <string name="setup_shizuku_service">Shizuku service</string>
+    <string name="setup_running">Running</string>
+    <string name="setup_not_running">Not running</string>
+    <string name="setup_shizuku_version">Shizuku version</string>
+    <string name="setup_unknown">Unknown</string>
+    <string name="setup_granted">Granted</string>
+    <string name="setup_not_granted">Not granted</string>
+    <string name="setup_delegate_ok">Delegation supported</string>
+    <string name="setup_delegate_old">Update Shizuku</string>
+    <string name="setup_action_get">Get Shizuku</string>
+    <string name="setup_action_open">Open Shizuku</string>
+    <string name="setup_action_request">Request access</string>
+    <string name="setup_action_upgrade">Get the update</string>
+    <string name="setup_recheck">Re-check</string>
+    <string name="toast_shizuku_first">Start the Shizuku service first</string>
+    <string name="toast_permission_denied">Shizuku permission not granted</string>
+
+    <!-- 设置 -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_night_mode">Mode</string>
+    <string name="night_follow">System</string>
+    <string name="night_light">Light</string>
+    <string name="night_dark">Dark</string>
+    <string name="settings_language">Language</string>
+    <string name="lang_follow">System</string>
+    <string name="lang_zh">中文</string>
+    <string name="lang_en">English</string>
+    <string name="settings_about_group">About</string>
+    <string name="settings_open_about">About Simlet</string>
+
+    <!-- 更新 -->
+    <string name="settings_update_group">Update</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_current">Current v%1$s</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_up_to_date">You are up to date</string>
+    <string name="update_available">New version v%1$s</string>
+    <string name="update_ready">Package ready v%1$s</string>
+    <string name="update_channel_group">Update channel</string>
+    <string name="update_no_release">No published release yet</string>
+    <string name="update_no_release_detail">No release has been published yet</string>
+    <string name="update_rate_limited">Rate limited</string>
+    <string name="update_rate_limited_detail">Too many requests. Try again later.</string>
+    <string name="update_failed">Check failed</string>
+    <string name="update_download_failed">Download did not finish</string>
+    <string name="update_no_asset">This release has no APK attached; download it manually from the release page</string>
+    <string name="update_download">Download the update</string>
+    <string name="update_downloading">Downloading %1$d%%</string>
+    <string name="update_install">Install now</string>
+    <string name="update_install_blocked">Allow installing unknown apps</string>
+    <string name="update_install_blocked_detail">Grant "install unknown apps" in system settings first</string>
+    <string name="update_open_page">Open release page</string>
+    <string name="update_channel">WeChat channel</string>
+    <string name="update_channel_detail">Release notices; installers come from the release page</string>
+    <string name="update_channel_account">Official account</string>
+    <string name="update_channel_name">知果核</string>
+    <string name="update_channel_copy">Copy name</string>
+    <string name="update_channel_qr">WeChat QR code</string>
+    <string name="update_copied">Copied</string>
+
+    <!-- 首页帮助弹层 -->
+    <string name="help_title">Usage tips</string>
+    <string name="help_body">· After saving, toggle airplane mode once so the carrier config is re-read\n· Overrides are re-applied automatically once after a reboot\n· Dual-SIM devices can be set per card, independently\n· Some custom ROMs block the interface at framework level; failing there is normal</string>
+
+    <!-- 关于：只留版本、开发者、许可、项目主页 -->
+    <string name="about_title">About</string>
+    <string name="about_version">Simlet v%1$s</string>
+    <string name="about_version_line">Version: %1$s</string>
+    <string name="about_developer_line">Developer: 千喜</string>
+    <string name="about_service_group">Service &amp; terms</string>
+    <string name="about_footer">Apache-2.0 licensed\nIcons by Reicon (MIT)</string>
+    <string name="about_summary">Changes the SIM country code and operator name the system reads, without root. It edits the carrier config the system sees, never the SIM itself, so every change is reversible.</string>
+    <string name="about_developer">Developer</string>
+    <string name="about_developer_name">千喜</string>
+    <string name="about_license">License</string>
+    <string name="about_privacy">Permissions &amp; data</string>
+    <string name="about_privacy_body">All SIM changes run under Shizuku authorization and the app asks for no runtime permissions. Update checks are the only network request, and every record stays on this device.</string>
+    <string name="about_project">Project page</string>
+
+    <!-- 结果与报错 -->
+    <string name="done_saved">Saved and applied</string>
+    <string name="done_restored">Restored all overrides on SIM %1$d</string>
+    <string name="need_choice">Pick a country code or an operator name first</string>
+    <string name="err_permission">Not enough permission — re-grant Simlet in Shizuku</string>
+    <string name="err_failed">Action failed</string>
+    <string name="err_failed_hint">Pull to refresh and try again</string>
+</resources>

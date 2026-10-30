@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+
+    <!-- 检查更新：拉 GitHub Releases 接口，以及下载升级包 -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 8 起拉起系统安装器需要用户单独授予「安装未知应用」 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+
+    <!--
+      这两个是 signature|privileged 权限，安装时不会被授予。
+      声明它们只是为了让 Shizuku 的 shell 权限委托能把它们临时借给本进程，
+      否则委托会话内的自检仍按「本应用未持有」拒绝写入。
+    -->
+    <uses-permission android:name="android.permission.MODIFY_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+
+    <!-- 检测本机是否安装 Shizuku（targetSdk 30+ 需要声明包可见性） -->
+    <queries>
+        <package android:name="moe.shizuku.privileged.api"/>
+        <package android:name="moe.shizuku.manager"/>
+    </queries>
+
+    <!-- 第三级兜底：由 Shizuku 以 shell 身份拉起的独立写入进程入口 -->
+    <instrumentation
+            android:name="com.qianxi.simlet.core.SimletOverrideJob"
+            android:targetPackage="${applicationId}"/>
+
+    <application
+            android:allowBackup="true"
+            android:dataExtractionRules="@xml/data_extraction_rules"
+            android:fullBackupContent="@xml/backup_rules"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:supportsRtl="true"
+            android:theme="@style/Theme.Simlet">
+
+        <activity
+                android:name=".SimletActivity"
+                android:exported="true"
+                android:label="@string/app_name"
+                android:theme="@style/Theme.Simlet">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+        <receiver
+                android:name=".boot.BootReceiver"
+                android:enabled="true"
+                android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
+
+        <service
+                android:name=".boot.BootReapplyService"
+                android:exported="false"
+                android:permission="android.permission.BIND_JOB_SERVICE"/>
+
+        <provider
+                android:name="androidx.core.content.FileProvider"
+                android:authorities="${applicationId}.fileprovider"
+                android:exported="false"
+                android:grantUriPermissions="true">
+            <meta-data
+                    android:name="android.support.FILE_PROVIDER_PATHS"
+                    android:resource="@xml/update_file_paths"/>
+        </provider>
+
+        <provider
+                android:name="rikka.shizuku.ShizukuProvider"
+                android:authorities="${applicationId}.shizuku"
+                android:enabled="true"
+                android:exported="true"
+                android:multiprocess="false"
+                android:permission="android.permission.INTERACT_ACROSS_USERS_FULL"/>
+    </application>
+
+</manifest>

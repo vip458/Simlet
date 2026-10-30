@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Simlet" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- 冷启动第一帧由窗口背景决定；不覆盖的话深色模式下会先闪一下浅底。 -->
+        <item name="android:windowBackground">@color/simlet_window_background</item>
+    </style>
+    <color name="ic_launcher_background">#4946F0</color>
+    <color name="simlet_window_background">#F6F6F6</color>
+</resources>
