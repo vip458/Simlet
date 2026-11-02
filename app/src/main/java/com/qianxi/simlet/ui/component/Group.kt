@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -217,7 +219,13 @@ fun InfoSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ) {
-        Column(Modifier.padding(horizontal = 24.dp)) {
+        // 正文长度不由这里决定：公告最多 240 字、隐私说明也走这个弹层，横屏时弹层高度有限，
+        // 不给它滚动的话最后一句会被裁掉，而裁掉的恰好是「怎么关掉」那半句。
+        Column(
+            Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+        ) {
             Text(title, style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(12.dp))
             Text(

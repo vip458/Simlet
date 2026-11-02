@@ -161,7 +161,7 @@
     <string name="about_feedback_copied">群号已复制：%1$s，在 QQ 里搜索加群</string>
     <string name="about_license">开源许可</string>
     <string name="about_privacy">权限与数据</string>
-    <string name="about_privacy_body">所有 SIM 操作经 Shizuku 授权完成，不申请运行时权限；除检查更新外不发任何网络请求，数据只存本机。</string>
+    <string name="about_privacy_body">所有 SIM 操作经 Shizuku 授权完成，不申请运行时权限；SIM 相关数据只存本机。网络请求只有你主动点「检查更新」时那一次；构建时配了自建后台地址，才会每天拉一次公告、并上报一条匿名使用统计（机型与版本，不含任何 SIM 内容），上报可以在「共享匿名使用统计」那一行关掉。</string>
     <string name="about_project">项目主页</string>
 
     <!-- 结果与报错：标题本地化，系统原文留在详情行 -->

@@ -46,7 +46,7 @@ Android 8.0 以上，加一个 **Shizuku 13.6.0 以上**（[下载](https://gith
 | 两张卡给不同地区 | 分别设置，互不影响 |
 | 全部恢复 | 逐张卡点还原 |
 
-不申请任何运行时权限；除了检查更新，不发任何网络请求；设置只存本机。安装包约 1.3 MB。
+不申请任何运行时权限；SIM 相关的数据只存本机；网络请求只有检查更新，以及可选的每天一条匿名使用统计（设置里可以关掉，见 [docs/privacy.md](docs/privacy.md)）。安装包约 1.3 MB。
 
 ## 它是怎么工作的
 
@@ -108,6 +108,22 @@ app/src/main/java/com/qianxi/simlet/
 - 深色模式三档、中英文切换
 - 应用内检查更新
 
+## 数据与隐私
+
+改 SIM 配置这件事本身完全在本机完成：国家码、运营商名称、保存的覆盖方案只写进应用的私有目录，不上传、不同步、不导出。卸载即干净。
+
+会离开手机的只有这几类请求：
+
+| 请求 | 内容 | 什么时候发 |
+| --- | --- | --- |
+| 检查更新 | 读 GitHub Releases 的公开接口，匿名 | 只在你点「检查更新」时，应用不会自己查 |
+| 自建后台 · 配置 | 拉公告和更新信息，不带设备标识 | 构建时配了后台地址才会发，一天最多一次 |
+| 自建后台 · 统计 | 每天一条匿名上报 | 同上，且设置里的统计开关没关 |
+
+匿名统计只有四样东西：一个本机随机生成的匿名 ID、机型、Android 版本、应用版本。没有手机号、IMSI、ICCID、位置，也没有你填的任何 SIM 内容。上报字段、服务器保留期、关闭方式都写在 [docs/privacy.md](docs/privacy.md) 里。
+
+那个后台是我自己跑的、不开源，但它和客户端之间只有一条公开文档化的 HTTP 接口，接口定义在本仓库 [docs/api-contract.md](docs/api-contract.md)。`HUB_BASE_URL` 留空（也就是你按下面「自己编译」出来的默认包）时，这两个后台请求一个都不发，公告位和统计开关整排都不出现——检查更新会自动退回直接读 GitHub，功能不受影响。fork 这个项目的人改一行就能指向自己的服务器，或者干脆不联网。
+
 ## 反馈
 
 QQ 群 **551772286** · [点击加群](https://qun.qq.com/universal-share/share?ac=1&authKey=izvrQCNarsbPQQG1Y8IsSeSp8%2FIz%2FIdQ0awH3sTSi%2BBSny%2F7axHzl7MEe4RoG9xX&busi_data=eyJncm91cENvZGUiOiI1NTE3NzIyODYiLCJ0b2tlbiI6IklYQ0FFSWs0YkV0TWxqSmpWbXJ4K0c1WE1CZ3ZpODJydUtPYnEwRjJ0U3BQMmxLbFhCSEx1SDdpaEtVMnpPSEUiLCJ1aW4iOiI0NTg2NTU3MzIifQ%3D%3D&data=Xmm0zFg5KfMXUs_Vz37BOSjXxNShffk2e7erhOtHAQPQy0NaCJ8P1wTDQaYjPf-0yQRMgq-sWOWpkVHdEtpTPQ&svctype=4&tempid=h5_group_info)（打不开就在 QQ 里搜群号）。提问麻烦带上机型、系统版本、Shizuku 版本，以及首页那行灰字。
@@ -131,6 +147,14 @@ cp keystore.properties.example keystore.properties   # 填你自己的 keystore
 ```
 
 `keystore.properties` 和 `*.jks` 都在 `.gitignore` 里，口令不进仓库。国内网络若拉不动 Gradle 发行包，把 `gradle/wrapper/gradle-wrapper.properties` 里的 `distributionUrl` 换成官方的 `https\://services.gradle.org/distributions/gradle-8.9-bin.zip`。
+
+想接自己的后台（接口见 [docs/api-contract.md](docs/api-contract.md)）：
+
+```bash
+./gradlew assembleRelease -PhubBaseUrl=https://your.host/simlet-api
+```
+
+地址填到目录为止，不带 `/api`。不加这个参数就是默认值——空字符串，此时公告、更新推送、匿名统计整套都不出现，一个请求也不发，检查更新退回直接读 GitHub。
 
 ## 贡献
 

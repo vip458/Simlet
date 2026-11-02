@@ -159,7 +159,7 @@
     <string name="about_feedback_copied">Group number copied: %1$s. Paste it into QQ\'s search box to join.</string>
     <string name="about_license">License</string>
     <string name="about_privacy">Permissions &amp; data</string>
-    <string name="about_privacy_body">All SIM changes run under Shizuku authorization and the app asks for no runtime permissions. Update checks are the only network request, and every record stays on this device.</string>
+    <string name="about_privacy_body">All SIM changes run under Shizuku authorization and the app asks for no runtime permissions; every SIM record stays on this device. The only request made by default is the update check, and only when you tap it. If this build was compiled with a hub address, it also fetches notices once a day and posts one anonymous usage record (device model and versions, never any SIM content) — you can turn that off with the &quot;Share anonymous usage stats&quot; switch.</string>
     <string name="about_project">Project page</string>
 
     <!-- 结果与报错 -->
