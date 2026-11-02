@@ -37,9 +37,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.qianxi.simlet.R
 import com.qianxi.simlet.data.RegionCatalog
+import com.qianxi.simlet.remote.RemoteStore
 import com.qianxi.simlet.ui.SimletViewModel
 import com.qianxi.simlet.ui.component.HelpSheet
 import com.qianxi.simlet.ui.component.IsoPicker
+import com.qianxi.simlet.ui.component.NoticeSection
+import com.qianxi.simlet.ui.component.NoticeSheet
 import com.qianxi.simlet.ui.component.OperatorSheet
 import com.qianxi.simlet.ui.component.PickerRow
 import com.qianxi.simlet.ui.component.RegionSheet
@@ -63,8 +66,10 @@ fun HomeScreen(
     var regionSheetOpen by remember { mutableStateOf(false) }
     var operatorSheetOpen by remember { mutableStateOf(false) }
     var helpSheetOpen by remember { mutableStateOf(false) }
+    var noticeSheetOpen by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
+    val remote = RemoteStore.of(context)
     LaunchedEffect(state.notice) {
         val feedback = state.notice ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(feedback.render(context))
@@ -193,6 +198,12 @@ fun HomeScreen(
                     onClick = { operatorSheetOpen = true }
                 )
             }
+
+            // 公告放最后一组：它不该把「保存」按钮顶出屏幕，也不该排在用户真正要操作的东西前面。
+            // 没配后台地址或后台没发公告时这一组不出现。
+            remote.notice?.let { announcement ->
+                NoticeSection(notice = announcement, onOpen = { noticeSheetOpen = true })
+            }
         }
     }
 
@@ -211,4 +222,10 @@ fun HomeScreen(
     )
 
     HelpSheet(visible = helpSheetOpen, onDismiss = { helpSheetOpen = false })
+
+    NoticeSheet(
+        visible = noticeSheetOpen,
+        notice = remote.notice,
+        onDismiss = { noticeSheetOpen = false }
+    )
 }

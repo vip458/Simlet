@@ -21,6 +21,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -197,6 +198,9 @@ fun TextBadge(text: String, modifier: Modifier = Modifier) {
  * 纯文字弹层：使用提示、权限与数据说明这类「读一段话」的内容用它。
  *
  * 参考稿把这类长文本从主页面里挪了出去，页面上只留一行入口。
+ * [linkText] + [onLink] 是给公告那种「正文下面还挂一个动作」的情况留的位。
+ * 这里收的是文字和回调而不是 `@Composable` 插槽：Compose 编译器没法通过
+ * `if (x == null) null else { ... }` 把插槽推断成 composable 类型，为一个可选行去折腾类型标注不值。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -204,7 +208,9 @@ fun InfoSheet(
     visible: Boolean,
     title: String,
     body: String,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    linkText: String? = null,
+    onLink: (() -> Unit)? = null
 ) {
     if (!visible) return
     ModalBottomSheet(
@@ -219,6 +225,10 @@ fun InfoSheet(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            if (linkText != null && onLink != null) {
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = onLink) { Text(linkText) }
+            }
             Spacer(Modifier.height(24.dp))
         }
     }

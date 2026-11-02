@@ -12,6 +12,13 @@ val keystoreProps = Properties().apply {
     rootProject.file("keystore.properties").takeIf { it.isFile }?.inputStream()?.use { load(it) }
 }
 
+// 自建后台的地址。留空 = 公告与统计这条链路整体关闭，fork 和自构建默认一个包都不多发。
+// 联调用 `-PhubBaseUrl=http://127.0.0.1:8642` 传，不写进仓库。
+// 过一遍白名单字符再拼进 BuildConfig：这个值来自命令行，带引号或反斜杠会直接写坏生成的 Java。
+val hubBaseUrl = (project.findProperty("hubBaseUrl") as String? ?: "")
+    .trim()
+    .replace(Regex("[^A-Za-z0-9:/._~%?&=-]"), "")
+
 android {
     namespace = "com.qianxi.simlet"
     compileSdk = 36
@@ -24,6 +31,8 @@ android {
         versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "HUB_BASE_URL", "\"$hubBaseUrl\"")
     }
 
     signingConfigs {

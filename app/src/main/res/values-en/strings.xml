@@ -99,6 +99,12 @@
     <string name="settings_about_group">About</string>
     <string name="settings_open_about">About Simlet</string>
 
+    <!-- 公告：由自建后台下发，构建时没配后台地址就整组不出现 -->
+    <string name="notice_group">Notice</string>
+    <string name="notice_level_warn">Heads-up</string>
+    <string name="notice_level_alert">Important</string>
+    <string name="notice_open_link">View details</string>
+
     <!-- 更新 -->
     <string name="settings_update_group">Update</string>
     <string name="update_check">Check for updates</string>

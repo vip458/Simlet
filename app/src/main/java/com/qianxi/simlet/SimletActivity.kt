@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -25,6 +26,10 @@ import androidx.compose.runtime.setValue
 import com.qianxi.simlet.core.HiddenAccess
 import com.qianxi.simlet.core.PlanStore
 import com.qianxi.simlet.core.ShizukuLink
+import com.qianxi.simlet.remote.HubClient
+import com.qianxi.simlet.remote.HubOutcome
+import com.qianxi.simlet.remote.HubRules
+import com.qianxi.simlet.remote.RemoteStore
 import com.qianxi.simlet.ui.UiPrefs
 import com.qianxi.simlet.ui.screen.AboutScreen
 import com.qianxi.simlet.ui.screen.HomeScreen
@@ -38,6 +43,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 import rikka.shizuku.Shizuku
 
@@ -50,6 +56,9 @@ import rikka.shizuku.Shizuku
 private enum class Page(val level: Int) {
     Setup(0), Home(0), Settings(1), About(2), Licenses(3)
 }
+
+/** 公告这条链路和 remote/HubClient 用同一个日志标签，抓 logcat 时一条命令能看全。 */
+private const val HUB_TAG = "SimletHub"
 
 /**
  * 切屏动画：Material 的轴向共享（shared axis X）。
@@ -83,6 +92,7 @@ class SimletActivity : ComponentActivity() {
 
     private var askedAutomatically = false
     private var reapplyStarted = false
+    private var noticeFetchStarted = false
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val permissionResult = Shizuku.OnRequestPermissionResultListener { _, result ->
@@ -134,6 +144,7 @@ class SimletActivity : ComponentActivity() {
 
         syncState()
         askAutomatically()
+        fetchNoticeOnce()
 
         setContent {
             SimletTheme {
@@ -212,6 +223,53 @@ class SimletActivity : ComponentActivity() {
         if (ShizukuLink.binderAlive()) {
             askedAutomatically = true
             ShizukuLink.askPermission()
+        }
+    }
+
+    /**
+     * 启动时问一次后台有没有公告。
+     *
+     * 整条链路可以完全静默，因为三件事都成立：没配后台地址（`HUB_BASE_URL` 留空，fork 和自构建的默认）
+     * 时一个请求都不发；拉到才写缓存、首页那一组才出现；拉不到连原因都不上屏——
+     * 用户此刻要做的是改 SIM 信息，不是一个「检查失败」的提示。
+     *
+     * 时间闸门在 HubRules 里，用「上次尝试」而不是「上次成功」：后台宕了的时候，
+     * 每次启动都重试只会让弱网用户多白等一个连接超时。
+     */
+    private fun fetchNoticeOnce() {
+        if (noticeFetchStarted || !HubRules.enabled(BuildConfig.HUB_BASE_URL)) return
+        noticeFetchStarted = true
+        val app = applicationContext
+        ioScope.launch {
+            val store = RemoteStore.of(app)
+            val started = System.currentTimeMillis()
+            if (!HubRules.shouldFetch(store.lastAttemptMs, started, store.bootHours)) {
+                Log.d(HUB_TAG, "跳过这趟：距上次尝试不足 ${store.bootHours} 小时")
+                return@launch
+            }
+            // 先把「我试过了」写下去，再发请求。
+            // 真机踩过：安装后第一次启动时系统紧接着又重建了一次 Activity，两个实例都读到
+            // 「从没试过」，各发一趟。写在请求之后挡不住这个窗口，写在前面最多是白记一次。
+            store.markAttempt(started, confirmed = false)
+            val tag = UiPrefs.of(app).localeTag ?: Locale.getDefault().language
+            val outcome = HubClient.fetch(
+                currentEtag = store.etag,
+                lang = HubRules.queryLang(tag),
+                versionName = BuildConfig.VERSION_NAME,
+                versionCode = BuildConfig.VERSION_CODE
+            )
+            val at = System.currentTimeMillis()
+            withContext(Dispatchers.Main) {
+                when (outcome) {
+                    is HubOutcome.Updated -> {
+                        store.apply(outcome.config, outcome.etag, at)
+                        Log.i(HUB_TAG, "公告已更新 id=${outcome.config.notice?.id ?: -1}")
+                    }
+
+                    HubOutcome.Cached -> store.markAttempt(at, confirmed = true)
+                    HubOutcome.Unreachable -> Unit
+                }
+            }
         }
     }
 
