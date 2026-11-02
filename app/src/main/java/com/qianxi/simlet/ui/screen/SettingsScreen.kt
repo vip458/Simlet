@@ -1,6 +1,7 @@
 package com.qianxi.simlet.ui.screen
 
 import android.os.Build
+import android.widget.Toast
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -37,8 +38,23 @@ import com.qianxi.simlet.update.UpdateViewModel
 import dev.reicon.Globe
 import dev.reicon.InfoCircle
 import dev.reicon.Language
+import dev.reicon.MessageCircle
 import dev.reicon.Moon
 import dev.reicon.Shield
+
+private const val QQ_GROUP = "551772286"
+
+/**
+ * 点「反馈交流」跳去 QQ 加群。
+ *
+ * 只认群二维码里那条 `https://qm.qq.com/cgi-bin/qm/qr?k=…`：key 属于群本身，谁点都一样，
+ * 公开在仓库里没有代价。另一种 `qun.qq.com/universal-share/share?…busi_data=…` 的
+ * base64 里解出来是群主的 uin 加一次性 token，那种串进仓库等于把群主凭据发出去，
+ * 而且过一阵就失效，所以不用它。
+ *
+ * 空串 = 还没拿到群二维码链接，这时点这一行退回「复制群号」。
+ */
+private const val QQ_JOIN_URL = ""
 
 /** 设置页：外观、语言、更新、渠道，以及通往关于页与权限说明的入口。 */
 @Composable
@@ -55,6 +71,7 @@ fun SettingsScreen(
     val channelName = stringResource(R.string.update_channel_name)
     val needInstallPermission = stringResource(R.string.update_install_blocked_detail)
     val copied = stringResource(R.string.update_copied)
+    val qqCopied = stringResource(R.string.about_feedback_copied, QQ_GROUP)
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
 
@@ -141,6 +158,21 @@ fun SettingsScreen(
                     icon = InfoCircle.Outline,
                     tail = RowTail.Next,
                     onClick = onOpenAbout
+                )
+                RowDivider()
+                SettingRow(
+                    title = stringResource(R.string.about_feedback),
+                    icon = MessageCircle.Outline,
+                    value = stringResource(R.string.about_feedback_value),
+                    tail = if (QQ_JOIN_URL.isEmpty()) RowTail.None else RowTail.Next,
+                    onClick = {
+                        if (QQ_JOIN_URL.isEmpty()) {
+                            clipboard.setText(AnnotatedString(QQ_GROUP))
+                            Toast.makeText(context, qqCopied, Toast.LENGTH_SHORT).show()
+                        } else {
+                            context.openWebPage(QQ_JOIN_URL)
+                        }
+                    }
                 )
                 RowDivider()
                 SettingRow(

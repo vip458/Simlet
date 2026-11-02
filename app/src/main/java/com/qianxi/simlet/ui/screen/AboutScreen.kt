@@ -1,6 +1,5 @@
 package com.qianxi.simlet.ui.screen
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,11 +10,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.qianxi.simlet.BuildConfig
@@ -28,35 +25,18 @@ import com.qianxi.simlet.ui.component.RowTail
 import com.qianxi.simlet.ui.openWebPage
 import dev.reicon.Code
 import dev.reicon.Globe
-import dev.reicon.MessageCircle
 
 private const val PROJECT_URL = "https://github.com/vip458/Simlet"
-
-private const val QQ_GROUP = "551772286"
-
-/**
- * 点这一行跳去 QQ 加群。
- *
- * 只认群二维码里那条 `https://qm.qq.com/cgi-bin/qm/qr?k=…`：key 属于群本身，谁点都一样，
- * 公开在仓库里没有代价。另一种 `qun.qq.com/universal-share/share?…busi_data=…` 的
- * base64 里解出来是群主的 uin 加一次性 token，那种串进仓库等于把群主凭据发出去，
- * 而且过一阵就失效，所以不用它。
- *
- * 空串 = 还没拿到群二维码链接，这时点这一行退回「复制群号」。
- */
-private const val QQ_JOIN_URL = ""
 
 /**
  * 关于页：居中 logo 块 + 行列表 + 底部灰脚注，全部照参考稿那张关于页的结构。
  *
- * 使用提示在首页顶栏的帮助里，权限与数据在设置页——两者都是「用的时候才需要看」。
+ * 使用提示在首页顶栏的帮助里，权限与数据、反馈群在设置页——都是「用的时候才需要看」的东西。
  * 第三方许可不再在这页铺开：它有自己的列表页，图标集也在里面。
  */
 @Composable
 fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit) {
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
-    val copiedHint = stringResource(R.string.about_feedback_copied, QQ_GROUP)
     AppScaffold(title = stringResource(R.string.about_title), onBack = onBack) { insets ->
         AppColumn(insets) {
             SettingGroup {
@@ -92,20 +72,6 @@ fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit) {
                     icon = Globe.Outline,
                     tail = RowTail.Next,
                     onClick = { context.openWebPage(PROJECT_URL) }
-                )
-                RowDivider()
-                SettingRow(
-                    title = stringResource(R.string.about_feedback),
-                    icon = MessageCircle.Outline,
-                    value = stringResource(R.string.about_feedback_value),
-                    onClick = {
-                        if (QQ_JOIN_URL.isEmpty()) {
-                            clipboard.setText(AnnotatedString(QQ_GROUP))
-                            Toast.makeText(context, copiedHint, Toast.LENGTH_SHORT).show()
-                        } else {
-                            context.openWebPage(QQ_JOIN_URL)
-                        }
-                    }
                 )
                 RowDivider()
                 SettingRow(

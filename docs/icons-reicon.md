@@ -95,7 +95,7 @@
 | `HelpCircle` | 首页顶栏 · 使用提示 | 24 | onSurface |
 | `InfoCircle` | 设置 · 关于 Simlet | 20 | onSurface |
 | `Language` | 设置 · 语言 | 20 | onSurface |
-| `MessageCircle` | 关于 · 反馈交流群 | 20 | onSurface |
+| `MessageCircle` | 设置 · 反馈交流群 | 20 | onSurface |
 | `Moon` | 设置 · 明暗模式 | 20 | onSurface |
 | `Qr` | 设置 · 公众号渠道 | 20 | onSurface |
 | `Refresh` | 首页顶栏刷新 / 检查更新 / 立即安装 / 下载升级包 / 重新检测 | 24·20·18 | onSurface |
