@@ -33,9 +33,9 @@ ICONS = [
     "chevron-up",    # 运营商分组：展开
     "copy",          # 公众号弹层 · 复制名称
     "code",          # 关于页 · 开源许可
-    "copyright",     # 关于页 · 第三方图标
     "globe",         # 关于页 · 项目主页
     "help-circle",   # 首页顶栏 · 使用提示（标准问号，不用 help 那支泳圈）
+    "message-circle",  # 关于页 · 反馈交流群
     "info-circle",   # 设置 · 关于
     "language",      # 设置 · 语言
     "moon",          # 设置 · 明暗模式

@@ -5,6 +5,9 @@ import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import com.qianxi.simlet.model.SimSlot
 
+/** 一次读卡的结果。`diagnosis` 只在读不到卡时非空，是给用户截图反馈用的技术串。 */
+data class SlotRead(val slots: List<SimSlot>, val diagnosis: String?)
+
 /**
  * 设备现状读取：卡槽映射 + 当前生效覆盖。
  *
@@ -14,31 +17,40 @@ import com.qianxi.simlet.model.SimSlot
  */
 object SlotReader {
 
-    private val LOGICAL_SLOT = Regex("""Logical SIM slot (\d+):\s*subId=(-?\d+)""")
-    private val INTERNAL_BLOCK = Regex("""SubscriptionInfoInternal:\s*id=(\d+)(.*)""")
-    private val SLOT_INDEX = Regex("""simSlotIndex=(\d+)""")
     private val CARRIER_NAME = Regex("""carrierName=([^,\]]+)""")
     private val DISPLAY_NAME = Regex("""displayName=([^,\]]+)""")
     private val MCC = Regex("""\bmcc=(\d+)""")
     private val MNC = Regex("""\bmnc=(\d+)""")
     private val COUNTRY_ISO = Regex("""countryIso=([a-z]{2})""")
 
-    fun slots(context: Context): List<SimSlot> {
+    fun read(context: Context): SlotRead {
+        val shell = runCatching { ShizukuLink.exec("dumpsys isub") }
+        if (shell.isFailure) {
+            return SlotRead(emptyList(), "dumpsys isub 执行不了：${shell.exceptionOrNull()?.javaClass?.simpleName}")
+        }
+        val output = shell.getOrThrow()
+        if (output.stdout.isBlank()) {
+            val reason = output.stderr.trim().ifBlank { "exit=${output.exitCode}" }
+            return SlotRead(emptyList(), "dumpsys isub 没有输出（$reason）")
+        }
+        val mapping = IsubParse.mapping(output.stdout)
+        if (mapping.isEmpty()) {
+            return SlotRead(emptyList(), "dumpsys isub 有 ${output.stdout.lines().size} 行，但没解析出卡槽映射")
+        }
+
         val overrides = OverrideDump.read()
-        val isub = isubOutput()
-        return mapping().toList()
-            .sortedBy { it.first }
-            .mapNotNull { (slotIndex, subscriptionId) ->
-                if (subscriptionId <= 0) return@mapNotNull null
-                SimSlot(
-                    slotIndex = slotIndex,
-                    subscriptionId = subscriptionId,
-                    reportedOperator = operatorLabel(context, slotIndex, subscriptionId, isub),
-                    applied = overrides[slotIndex]
-                        ?: ConfigReader.appliedViaLoader(context, subscriptionId),
-                    effectiveCountryIso = recordOf(isub, subscriptionId)?.let { COUNTRY_ISO.find(it)?.groupValues?.get(1) }
-                )
-            }
+        val slots = mapping.toList().sortedBy { it.first }.map { (slotIndex, subscriptionId) ->
+            SimSlot(
+                slotIndex = slotIndex,
+                subscriptionId = subscriptionId,
+                reportedOperator = operatorLabel(context, slotIndex, subscriptionId, output.stdout),
+                applied = overrides[slotIndex]
+                    ?: ConfigReader.appliedViaLoader(context, subscriptionId),
+                effectiveCountryIso = recordOf(output.stdout, subscriptionId)
+                    ?.let { COUNTRY_ISO.find(it)?.groupValues?.get(1) }
+            )
+        }
+        return SlotRead(slots, null)
     }
 
     /**
@@ -70,37 +82,8 @@ object SlotReader {
             ShizukuLink.exec("getprop $key").stdout.trim().trimStart('[').trimEnd(']')
         }.getOrNull()?.split(',')?.map(String::trim)?.filter(String::isNotEmpty) ?: emptyList()
 
-    private fun recordOf(isub: String?, subscriptionId: Int): String? {
-        if (isub == null) return null
-        INTERNAL_BLOCK.findAll(isub).forEach { match ->
-            if (match.groupValues[1].toIntOrNull() == subscriptionId) return match.groupValues[2]
-        }
-        return null
-    }
-
-    /** 卡槽序号（等于 Phone Id）→ 订阅号。 */
-    fun mapping(): Map<Int, Int> {
-        val fromShell = slotsFromDumpsys()
-        return if (fromShell.isNotEmpty()) fromShell else emptyMap()
-    }
-
-    private fun slotsFromDumpsys(): Map<Int, Int> {
-        val output = isubOutput() ?: return emptyMap()
-        val result = linkedMapOf<Int, Int>()
-
-        LOGICAL_SLOT.findAll(output).forEach { match ->
-            val slot = match.groupValues[1].toIntOrNull() ?: return@forEach
-            val subId = match.groupValues[2].toIntOrNull() ?: return@forEach
-            if (subId > 0) result[slot] = subId
-        }
-        // 部分 ROM 不打印 Logical SIM slot 行，退回从内部订阅块里配对
-        INTERNAL_BLOCK.findAll(output).forEach { match ->
-            val subId = match.groupValues[1].toIntOrNull() ?: return@forEach
-            val slot = SLOT_INDEX.find(match.groupValues[2])?.groupValues?.get(1)?.toIntOrNull() ?: return@forEach
-            if (subId > 0 && slot >= 0) result.putIfAbsent(slot, subId)
-        }
-        return result
-    }
+    private fun recordOf(isub: String?, subscriptionId: Int): String? =
+        isub?.let { IsubParse.record(it, subscriptionId) }
 
     /**
      * 状态栏与系统上报的运营商名，用于标注「这是哪张卡」。
@@ -138,7 +121,7 @@ object SlotReader {
     }
 
     private fun isubOutput(): String? =
-        runCatching { ShizukuLink.exec("dumpsys isub").stdout }.getOrNull()
+        runCatching { ShizukuLink.exec("dumpsys isub").stdout.takeIf { it.isNotBlank() } }.getOrNull()
 
     /** 国内四家运营商的稳定 id；显示名由界面按语言映射，这里不出文案。 */
     private fun carrierIdByNumeric(numeric: String): String? = when {

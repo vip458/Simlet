@@ -62,7 +62,7 @@ object PlanStore {
         if (store.getInt(KEY_BOOT, -2) == bootCount) return false
         store.edit().putInt(KEY_BOOT, bootCount).remove(KEY_HEALED).apply()
 
-        val slots = SlotReader.slots(context)
+        val slots = SlotReader.read(context).slots
         adopt(context, slots)
         val healed = healedSlots(context)
 

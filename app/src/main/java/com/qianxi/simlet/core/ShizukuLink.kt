@@ -72,7 +72,10 @@ object ShizukuLink {
             consume(process.errorStream, err)
         )
         val code = process.waitFor()
-        readers.forEach { it.join(3_000L) }
+        // 进程退出后要把管道读空再返回。dumpsys isub 在部分 ROM 上是几十 KB，
+        // 原来这里只给读线程 3 秒收尾，超时就拿着截断的文本继续往下解析——
+        // 排在后面的卡槽行一丢，直接表现成「识别不到卡」。
+        readers.forEach { it.join(15_000L) }
         return ShellOutput(code, out.toString(), err.toString())
     }
 

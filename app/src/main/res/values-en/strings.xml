@@ -24,7 +24,7 @@
     <string name="sim_row">SIM %1$d · %2$s</string>
     <string name="override_state_on">Overridden</string>
     <string name="real_operator">Real: %1$s</string>
-    <string name="sim_empty">No usable SIM card found. Insert a SIM, then pull to refresh.</string>
+    <string name="sim_empty">No usable SIM card found. Make sure a SIM is inserted and not PIN-locked, then pull to refresh.</string>
     <string name="section_country">Country code</string>
     <string name="write_country">Set to %1$s · %2$s</string>
     <string name="country_custom_fallback">Custom</string>
@@ -143,6 +143,8 @@
     <string name="about_summary">Changes the SIM country code and operator name the system reads, without root. It edits the carrier config the system sees, never the SIM itself, so every change is reversible.</string>
     <string name="about_developer">Developer</string>
     <string name="about_developer_name">千喜</string>
+    <string name="about_feedback">Feedback</string>
+    <string name="about_feedback_value">QQ group 1049211484</string>
     <string name="about_license">License</string>
     <string name="about_privacy">Permissions &amp; data</string>
     <string name="about_privacy_body">All SIM changes run under Shizuku authorization and the app asks for no runtime permissions. Update checks are the only network request, and every record stays on this device.</string>

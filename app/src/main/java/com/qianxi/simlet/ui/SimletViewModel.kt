@@ -21,6 +21,7 @@ import kotlinx.coroutines.withContext
 
 data class HomeState(
     val slots: List<SimSlot> = emptyList(),
+    val slotsDiagnosis: String? = null,
     val selectedIndex: Int = 0,
     val loading: Boolean = true,
     val failure: Feedback? = null,
@@ -65,13 +66,15 @@ class SimletViewModel(application: Application) : AndroidViewModel(application) 
             _state.update { it.copy(loading = true, failure = null) }
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    SlotReader.slots(app).also { PlanStore.adopt(app, it) }
+                    SlotReader.read(app).also { PlanStore.adopt(app, it.slots) }
                 }
             }
             _state.update { current ->
-                val slots = result.getOrDefault(emptyList())
+                val read = result.getOrNull()
+                val slots = read?.slots ?: emptyList()
                 current.copy(
                     slots = slots,
+                    slotsDiagnosis = read?.diagnosis,
                     loading = false,
                     failure = result.exceptionOrNull()?.let(::describe),
                     selectedIndex = current.selectedIndex.coerceAtMost((slots.size - 1).coerceAtLeast(0))
@@ -134,9 +137,11 @@ class SimletViewModel(application: Application) : AndroidViewModel(application) 
     private fun refreshSilently() {
         val app = getApplication<Application>()
         viewModelScope.launch {
-            val slots = runCatching { withContext(Dispatchers.IO) { SlotReader.slots(app) } }.getOrNull()
+            val read = runCatching { withContext(Dispatchers.IO) { SlotReader.read(app) } }.getOrNull()
                 ?: return@launch
-            _state.update { it.copy(slots = slots, loading = false) }
+            if (read.slots.isEmpty() && read.diagnosis == null) return@launch
+            // 写完后读空了不能把上一次的卡槽留着，否则界面显示的是已经不存在的订阅
+            _state.update { it.copy(slots = read.slots, slotsDiagnosis = read.diagnosis, loading = false) }
         }
     }
 

@@ -131,12 +131,23 @@ fun HomeScreen(
             SettingGroup(title = stringResource(R.string.section_sim_cards)) {
                 when {
                     state.loading -> Column(Modifier.padding(20.dp)) { SkeletonBlock(lines = 2) }
-                    state.slots.isEmpty() -> Text(
-                        stringResource(R.string.sim_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(20.dp)
-                    )
+                    state.slots.isEmpty() -> Column(Modifier.padding(20.dp)) {
+                        Text(
+                            stringResource(R.string.sim_empty),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        // 读不到卡的原因只有 shell 那一侧知道，留成原文，
+                        // 用户截图就能定位，不用我们隔着反馈猜。
+                        state.slotsDiagnosis?.let { reason ->
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                reason,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                     else -> SlotRows(
                         slots = state.slots,
                         selectedIndex = state.selectedIndex,

@@ -39,7 +39,7 @@ import dev.reicon.Settings
 
 enum class SetupStage { NOT_INSTALLED, SERVICE_DOWN, PERMISSION_PENDING, SERVER_TOO_OLD }
 
-private const val SHIZUKU_DOWNLOAD = "https://github.com/RikkaApps/Shizuku-Releases"
+private const val SHIZUKU_DOWNLOAD = "https://github.com/rushiranpise/Shizuku-Next"
 
 fun resolveSetupStage(context: android.content.Context): SetupStage = when {
     !ShizukuLink.installed(context) -> SetupStage.NOT_INSTALLED

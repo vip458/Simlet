@@ -47,12 +47,12 @@ It rewrites what `system_server` reports about your SIMs — never the SIM itsel
 | | |
 | --- | --- |
 | 系统 | Android 8.0（API 26）及以上 |
-| 依赖 | [Shizuku](https://github.com/RikkaApps/Shizuku-Releases) **13.6.0 以上**（Android 16/17 必需，低版本没有权限委托能力） |
+| 依赖 | [Shizuku](https://github.com/rushiranpise/Shizuku-Next) **13.6.0 以上**（Android 16/17 必需，低版本没有权限委托能力）。这是社区维护的 Shizuku 发行版，保留官方包名与 API；官方上游是 [RikkaApps/Shizuku](https://github.com/RikkaApps/Shizuku) |
 | 存储 | 安装包约 1.3 MB（R8 混淆 + 资源压缩后实测），配置只存本机 |
 
 ## 快速上手
 
-1. **装 Shizuku 并启动**。推荐「无线调试」方式，一次配对、重启后需重新启动。
+1. **装 Shizuku 并启动**：用 [Shizuku-Next](https://github.com/rushiranpise/Shizuku-Next)（官方包名与 API，兼容不变）。推荐「无线调试」方式，一次配对、重启后需重新启动。
 2. **装 Simlet**。从 [Releases](https://github.com/vip458/Simlet/releases) 下载 `app-release.apk` 安装；或照下面[构建](#构建)自己出包。
 3. 打开 Simlet，在引导页点「请求授权」，在 Shizuku 的授权弹窗里点允许。授权成功后引导页会自动换成首页。
 4. 首页选卡 → 点目标国家码（例如 `JP`）→ 需要的话再改运营商名称 → 点右下角**保存**。
@@ -121,6 +121,7 @@ app/src/main/java/com/qianxi/simlet/
 │   ├── JobLauncher.kt         #   通道三启动器
 │   ├── OverrideWriter.kt      #   三级回退总控 + 写后校验
 │   ├── SlotReader.kt          #   卡槽映射与当前配置读取
+│   ├── IsubParse.kt           #   dumpsys isub 的文本解析（纯逻辑，有单元测试）
 │   ├── OverrideDump.kt        #   解析 dumpsys carrier_config 的覆盖块
 │   ├── RegistryDump.kt        #   解析系统实际上报的运营商名
 │   ├── SubscriptionSync.kt    #   状态栏运营商名跟随
@@ -148,6 +149,25 @@ app/src/main/java/com/qianxi/simlet/
 - `dumpsys isub` 里的 carrierName 始终不随品牌覆盖变化，判断是否跟随要看 `dumpsys telephony.registry` 的 `mOperatorAlphaLong`
 - 通道三依赖「应用进程已在运行」：Shizuku 是把 binder 通过应用自己的 ContentProvider 递进来的，若应用进程被系统杀掉后单独拉起 instrumentation 进程，该进程里取不到 binder（报 `Shizuku 未就绪`）。从界面点保存/还原时应用本来就在前台，不受影响；开机补写走的是应用自身的进程，也不受影响
 
+## 排障
+
+**首页显示「未检测到可用 SIM 卡」**
+
+先确认卡插好了、SIM 没被 PIN 码锁住——锁着的话系统还没有活跃订阅，任何应用都读不到它。
+
+还不行，看这句提示下面那行灰色小字，那是读卡通道自己报的原因，例如：
+
+- `dumpsys isub 没有输出（exit=1 ...）` —— shell 命令被拒，问题在 Shizuku 那侧
+- `dumpsys isub 有 132 行，但没解析出卡槽映射` —— 你这台 ROM 的打印格式还没被认得
+
+本应用的卡槽与订阅号完全取自 `dumpsys isub` 的文本，各家 ROM 打得不一样。**把那行灰字连同机型、系统版本一起发到下面的群里**，比只说「识别不到卡」有用得多——没有真实样本就修不到那一台。
+
+## 反馈
+
+QQ 群 **1049211484** · [点击加群](https://qun.qq.com/universal-share/share?ac=1&authKey=vEK5KHw%2FmB09yJfTUGb8zNt0zh20n6i859rEQQRXyVKMXT%2BHYQ8o%2BQy6hr243gN6&busi_data=eyJncm91cENvZGUiOiIxMDQ5MjExNDg0IiwidG9rZW4iOiJtWUc3aVlwM01hUEN1TDN2UkhHOVlEUWk2TUQ1QmgwZk41SnlvSHVqOHJMSkNlNHFkNGZNY0dZbjk0Vk05QW1jIiwidWluIjoiNDU4NjU1NzMyIn0%3D&data=xNOHX1aej9QNrV7KWcTHAMAis85bkBDqpi_9qWz-OclTQPpv5LdkAfE_wqAHNmjlN095vav5KQ11BEmav6CZOQ&svctype=4&tempid=h5_group_info)
+
+提问请带上：机型、系统版本、Shizuku 版本、首页那行灰字。
+
 ## 贡献
 
 改动请顺手遵守仓库现有风格：注释用中文、只在「为什么」不显然的地方写注释、界面文案一律走 `strings.xml`（`values-en` 同步补）。
@@ -158,6 +178,7 @@ app/src/main/java/com/qianxi/simlet/
 ## 鸣谢
 
 - [Shizuku](https://github.com/RikkaApps/Shizuku) — 免 Root 拿到 shell 能力的全部前提
+- [Shizuku-Next](https://github.com/rushiranpise/Shizuku-Next) — 应用内引导安装的发行版
 - [Reicon](https://reicon.dev) — 界面图标（MIT，vendored 子集见 `app/src/main/java/dev/reicon`）
 - [Ackites Nrfr](https://github.com/Ackites/Nrfr) — 同类机制的先行者；Simlet 是独立实现，不含其代码，但「这条路在 Android 16/17 上走得通」最早是在它上面验证的
 
