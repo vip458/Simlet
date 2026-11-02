@@ -98,7 +98,7 @@ app/src/main/java/com/qianxi/simlet/
 
 ## 反馈
 
-QQ 群 **551772286**（QQ 里搜群号即可加群）。提问麻烦带上机型、系统版本、Shizuku 版本，以及首页那行灰字。
+QQ 群 **551772286** · [点击加群](https://qun.qq.com/universal-share/share?ac=1&authKey=izvrQCNarsbPQQG1Y8IsSeSp8%2FIz%2FIdQ0awH3sTSi%2BBSny%2F7axHzl7MEe4RoG9xX&busi_data=eyJncm91cENvZGUiOiI1NTE3NzIyODYiLCJ0b2tlbiI6IklYQ0FFSWs0YkV0TWxqSmpWbXJ4K0c1WE1CZ3ZpODJydUtPYnEwRjJ0U3BQMmxLbFhCSEx1SDdpaEtVMnpPSEUiLCJ1aW4iOiI0NTg2NTU3MzIifQ%3D%3D&data=Xmm0zFg5KfMXUs_Vz37BOSjXxNShffk2e7erhOtHAQPQy0NaCJ8P1wTDQaYjPf-0yQRMgq-sWOWpkVHdEtpTPQ&svctype=4&tempid=h5_group_info)（打不开就在 QQ 里搜群号）。提问麻烦带上机型、系统版本、Shizuku 版本，以及首页那行灰字。
 
 发版通知我发在公众号 **知果核**，安装包一律以本仓库 Releases 为准。
 

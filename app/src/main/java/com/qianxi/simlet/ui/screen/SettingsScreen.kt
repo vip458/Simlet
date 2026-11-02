@@ -47,14 +47,20 @@ private const val QQ_GROUP = "551772286"
 /**
  * 点「反馈交流」跳去 QQ 加群。
  *
- * 只认群二维码里那条 `https://qm.qq.com/cgi-bin/qm/qr?k=…`：key 属于群本身，谁点都一样，
- * 公开在仓库里没有代价。另一种 `qun.qq.com/universal-share/share?…busi_data=…` 的
- * base64 里解出来是群主的 uin 加一次性 token，那种串进仓库等于把群主凭据发出去，
- * 而且过一阵就失效，所以不用它。
+ * 这是 QQ「分享群」给出来的那条 universal-share 链接：busi_data 是 base64，
+ * 解出来含群主 uin 和一个 token。更干净的做法是群二维码那条
+ * `qm.qq.com/cgi-bin/qm/qr?k=…`（只带群自己的 key），但 QQ 当前版本分享出来
+ * 只有 universal-share 这一种，所以就用它。
  *
- * 空串 = 还没拿到群二维码链接，这时点这一行退回「复制群号」。
+ * 万一它过期或被人拿去刷群：把这里换成空串，这一行会退回「复制群号」，
+ * 不需要动别的代码。
  */
-private const val QQ_JOIN_URL = ""
+private const val QQ_JOIN_URL =
+    "https://qun.qq.com/universal-share/share?ac=1" +
+        "&authKey=izvrQCNarsbPQQG1Y8IsSeSp8%2FIz%2FIdQ0awH3sTSi%2BBSny%2F7axHzl7MEe4RoG9xX" +
+        "&busi_data=eyJncm91cENvZGUiOiI1NTE3NzIyODYiLCJ0b2tlbiI6IklYQ0FFSWs0YkV0TWxqSmpWbXJ4K0c1WE1CZ3ZpODJydUtPYnEwRjJ0U3BQMmxLbFhCSEx1SDdpaEtVMnpPSEUiLCJ1aW4iOiI0NTg2NTU3MzIifQ%3D%3D" +
+        "&data=Xmm0zFg5KfMXUs_Vz37BOSjXxNShffk2e7erhOtHAQPQy0NaCJ8P1wTDQaYjPf-0yQRMgq-sWOWpkVHdEtpTPQ" +
+        "&svctype=4&tempid=h5_group_info"
 
 /** 设置页：外观、语言、更新、渠道，以及通往关于页与权限说明的入口。 */
 @Composable
