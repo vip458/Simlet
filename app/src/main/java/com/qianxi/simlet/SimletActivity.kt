@@ -3,6 +3,7 @@ package com.qianxi.simlet
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -92,7 +93,7 @@ class SimletActivity : ComponentActivity() {
 
     private var askedAutomatically = false
     private var reapplyStarted = false
-    private var noticeFetchStarted = false
+    private var hubSyncStarted = false
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val permissionResult = Shizuku.OnRequestPermissionResultListener { _, result ->
@@ -144,7 +145,7 @@ class SimletActivity : ComponentActivity() {
 
         syncState()
         askAutomatically()
-        fetchNoticeOnce()
+        syncHubOnce()
 
         setContent {
             SimletTheme {
@@ -227,7 +228,10 @@ class SimletActivity : ComponentActivity() {
     }
 
     /**
-     * 启动时问一次后台有没有公告。
+     * 启动时和后台同步一次：先取配置（公告、更新信息、采集策略），再决定这条启动要不要上报。
+     *
+     * 两件事共用一个协程是有意的：上报要按「刚拿到的策略」放行，分成两个并发的活会让第一条上报
+     * 带着上一个版本的间隔设置发出去。
      *
      * 整条链路可以完全静默，因为三件事都成立：没配后台地址（`HUB_BASE_URL` 留空，fork 和自构建的默认）
      * 时一个请求都不发；拉到才写缓存、首页那一组才出现；拉不到连原因都不上屏——
@@ -236,40 +240,81 @@ class SimletActivity : ComponentActivity() {
      * 时间闸门在 HubRules 里，用「上次尝试」而不是「上次成功」：后台宕了的时候，
      * 每次启动都重试只会让弱网用户多白等一个连接超时。
      */
-    private fun fetchNoticeOnce() {
-        if (noticeFetchStarted || !HubRules.enabled(BuildConfig.HUB_BASE_URL)) return
-        noticeFetchStarted = true
+    private fun syncHubOnce() {
+        if (hubSyncStarted || !HubRules.enabled(BuildConfig.HUB_BASE_URL)) return
+        hubSyncStarted = true
         val app = applicationContext
         ioScope.launch {
             val store = RemoteStore.of(app)
             val started = System.currentTimeMillis()
-            if (!HubRules.shouldFetch(store.lastAttemptMs, started, store.bootHours)) {
-                Log.d(HUB_TAG, "跳过这趟：距上次尝试不足 ${store.bootHours} 小时")
-                return@launch
-            }
-            // 先把「我试过了」写下去，再发请求。
-            // 真机踩过：安装后第一次启动时系统紧接着又重建了一次 Activity，两个实例都读到
-            // 「从没试过」，各发一趟。写在请求之后挡不住这个窗口，写在前面最多是白记一次。
-            store.markAttempt(started, confirmed = false)
+            // 语言取法和设置页那次一致：应用内设置优先，没设置才看系统语言。
             val tag = UiPrefs.of(app).localeTag ?: Locale.getDefault().language
-            val outcome = HubClient.fetch(
-                currentEtag = store.etag,
-                lang = HubRules.queryLang(tag),
-                versionName = BuildConfig.VERSION_NAME,
-                versionCode = BuildConfig.VERSION_CODE
-            )
-            val at = System.currentTimeMillis()
-            withContext(Dispatchers.Main) {
-                when (outcome) {
-                    is HubOutcome.Updated -> {
-                        store.apply(outcome.config, outcome.etag, at)
-                        Log.i(HUB_TAG, "公告已更新 id=${outcome.config.notice?.id ?: -1}")
-                    }
-
-                    HubOutcome.Cached -> store.markAttempt(at, confirmed = true)
-                    HubOutcome.Unreachable -> Unit
-                }
+            val lang = HubRules.queryLang(tag)
+            if (HubRules.shouldFetch(store.lastAttemptMs, started, store.bootHours)) {
+                fetchConfig(store, started, lang)
+            } else {
+                Log.d(HUB_TAG, "跳过这趟：距上次尝试不足 ${store.bootHours} 小时")
             }
+            reportBoot(store, lang)
+        }
+    }
+
+    private suspend fun fetchConfig(store: RemoteStore, started: Long, lang: String) {
+        // 先把「我试过了」写下去，再发请求。
+        // 真机踩过：安装后第一次启动时系统紧接着又重建了一次 Activity，两个实例都读到
+        // 「从没试过」，各发一趟。写在请求之后挡不住这个窗口，写在前面最多是白记一次。
+        store.markAttempt(started, confirmed = false)
+        val outcome = HubClient.fetch(
+            currentEtag = store.etag,
+            lang = lang,
+            versionName = BuildConfig.VERSION_NAME,
+            versionCode = BuildConfig.VERSION_CODE
+        )
+        val at = System.currentTimeMillis()
+        withContext(Dispatchers.Main) {
+            when (outcome) {
+                is HubOutcome.Updated -> {
+                    store.apply(outcome.config, outcome.etag, at)
+                    Log.i(HUB_TAG, "公告已更新 id=${outcome.config.notice?.id ?: -1}")
+                }
+
+                HubOutcome.Cached -> store.markAttempt(at, confirmed = true)
+                HubOutcome.Unreachable -> Unit
+            }
+        }
+    }
+
+    /**
+     * 每天一条启动上报。
+     *
+     * 机型和系统版本是这条链路上唯一会上去的设备信息，加上一个只在本机生成的匿名 ID。
+     * 发失败就把时间戳退回 0，让下次启动再试一次——一次网络抖动不该让这台设备整天从统计里消失。
+     */
+    private fun reportBoot(store: RemoteStore, lang: String) {
+        val now = System.currentTimeMillis()
+        // 两个挡住的原因分开记：用户报「我关了统计它还在发」时，这一行日志能直接分清是开关没生效
+        // 还是只是没到间隔——隔着反馈猜是猜不出来的。
+        if (!store.statsOn) {
+            Log.d(HUB_TAG, "统计开关已关，不发上报")
+            return
+        }
+        if (!HubRules.reportWanted(true, store.policyOn, store.lastReportMs, now, store.reportHours)) {
+            Log.d(HUB_TAG, "这条上报不发：后台熔断或距上次上报不足 ${store.reportHours} 小时")
+            return
+        }
+        store.markReport(now)
+        if (!HubClient.report(
+                deviceId = store.deviceId,
+                brand = Build.MANUFACTURER,
+                model = Build.MODEL,
+                sdk = Build.VERSION.SDK_INT,
+                versionName = BuildConfig.VERSION_NAME,
+                versionCode = BuildConfig.VERSION_CODE,
+                lang = lang,
+                event = "boot"
+            )
+        ) {
+            store.markReport(0L)
         }
     }
 

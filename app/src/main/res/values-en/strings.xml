@@ -105,6 +105,9 @@
     <string name="notice_level_alert">Important</string>
     <string name="notice_open_link">View details</string>
 
+    <!-- 统计开关：只有构建时配了自建后台地址才会出现这一行 -->
+    <string name="settings_stats">Share anonymous usage stats</string>
+
     <!-- 更新 -->
     <string name="settings_update_group">Update</string>
     <string name="update_check">Check for updates</string>

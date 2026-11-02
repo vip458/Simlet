@@ -1,11 +1,13 @@
 package com.qianxi.simlet.ui.component
 
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.qianxi.simlet.R
 import com.qianxi.simlet.remote.Notice
 import com.qianxi.simlet.ui.openWebPage
+import dev.reicon.Globe
 import dev.reicon.InfoCircle
 
 /**
@@ -53,5 +55,24 @@ fun NoticeSheet(visible: Boolean, notice: Notice?, onDismiss: () -> Unit) {
         onDismiss = onDismiss,
         linkText = link?.let { stringResource(R.string.notice_open_link) },
         onLink = link?.let { target -> { context.openWebPage(target) } }
+    )
+}
+
+/**
+ * 「共享匿名使用统计」这一行。
+ *
+ * 只在构建时配了后台地址时才出现：一个控制不了任何行为的开关比没有开关更糟，
+ * 而自构建和 fork 默认就是留空，所以这一行对它们根本不存在。
+ *
+ * 整行可点，右侧的开关只是同一件事的另一种点法——56dp 的行里只让人去瞄一个 40dp 的开关不合理。
+ * 尾值不放「已开启/已关闭」：开关本身已经说了这件事，说两遍是噪音。
+ */
+@Composable
+fun StatsRow(on: Boolean, onToggle: (Boolean) -> Unit) {
+    SettingRow(
+        title = stringResource(R.string.settings_stats),
+        icon = Globe.Outline,
+        trailing = { Switch(checked = on, onCheckedChange = onToggle) },
+        onClick = { onToggle(!on) }
     )
 }

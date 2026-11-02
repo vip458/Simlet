@@ -82,6 +82,24 @@ object HubRules {
     private const val CACHE_MS = 30 * 24 * 60 * 60 * 1000L
 
     /**
+     * 这条上报该不该发。
+     *
+     * 三道闸按「最可能挡住、也最该先答应的」顺序排：本机开关（用户随时能关）、后台熔断、时间间隔。
+     * 顺序不是洁癖——本机开关关掉时连时间戳都不该读，这样「关掉统计」在代码路径上是可证的：
+     * 关掉以后没有任何一条路径会走到 POST。
+     */
+    fun reportWanted(
+        statsOn: Boolean,
+        policyOn: Boolean,
+        lastReportMs: Long,
+        nowMs: Long,
+        reportHours: Int
+    ): Boolean {
+        if (!statsOn || !policyOn) return false
+        return shouldFetch(lastReportMs, nowMs, reportHours)
+    }
+
+    /**
      * 这台设备要不要提示更新。
      *
      * 顺序是有讲究的：先看有没有更新的版本，再看版本区间，最后看灰度。

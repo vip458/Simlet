@@ -166,6 +166,28 @@ class HubRulesTest {
         assertTrue(HubRules.updateWanted(3, release(code = 4, rollout = 100, critical = true), SEED))
     }
 
+    @Test
+    fun `本机开关或后台熔断任一关掉就不上报`() {
+        val now = 1_762_000_000_000L
+        // 两个关掉都要挡住，而且挡在时间判断之前：「关掉统计」必须在这条链路上没有出口，
+        // 不能只是「今天先不发」，也不能关掉以后还去读一遍时间戳算该不该发。
+        assertFalse(HubRules.reportWanted(false, true, 0L, now, 24))
+        assertFalse(HubRules.reportWanted(true, false, 0L, now, 24))
+        assertFalse(HubRules.reportWanted(false, false, 0L, now, 24))
+        assertTrue(HubRules.reportWanted(true, true, 0L, now, 24))
+    }
+
+    @Test
+    fun `上报间隔独立于配置拉取间隔`() {
+        val now = 1_762_000_000_000L
+        // 后台把 rp 调到 72 小时（runbook 降流量的第 1 步）时，昨天报过的今天不该再报。
+        assertFalse(HubRules.reportWanted(true, true, now - 25 * hour, now, 72))
+        assertTrue(HubRules.reportWanted(true, true, now - 73 * hour, now, 72))
+        // 和 GET 用的是同一套间隔语义，所以 0 和超界值同样被钳在 1~720 小时。
+        assertFalse(HubRules.reportWanted(true, true, now - 10 * 60_000L, now, 0))
+        assertTrue(HubRules.reportWanted(true, true, now - 2 * hour, now, 0))
+    }
+
     private fun release(
         code: Int = 4,
         minCode: Int = 0,

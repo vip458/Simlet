@@ -83,6 +83,7 @@ object HubClient {
 
     private const val TAG = "SimletHub"
     private const val PATH = "/api/v1/bootstrap.php"
+    private const val PING_PATH = "/api/v1/ping.php"
     private const val TIMEOUT_MS = 8_000
 
     /** 后台硬上限是 1500 字节；读到 16KB 还没完就说明不对，直接放弃而不是撑大内存。 */
@@ -127,6 +128,78 @@ object HubClient {
         } finally {
             connection.disconnect()
         }
+    }
+
+    /**
+     * 发一条匿名上报。返回是否发出去了。
+     *
+     * 服务端对这条路径永远回 204——校验失败、被限流、被熔断都是同一个响应，
+     * 因为「哪种请求会被拒」本身是探测反馈。所以这里不解析正文，也不区分失败种类：
+     * 区分了也没有可做的动作，重试一个「对方决定不收」的请求只会把流量额度花在空包上。
+     *
+     * 表单用短键名，和 docs/api-contract.md 一致；整套正文控制在几百字节，
+     * 因为这条请求的固定开销是 TLS 握手，不是这几个字段。
+     */
+    fun report(
+        deviceId: String,
+        brand: String,
+        model: String,
+        sdk: Int,
+        versionName: String,
+        versionCode: Int,
+        lang: String,
+        event: String
+    ): Boolean {
+        val base = HubRules.endpoint(BuildConfig.HUB_BASE_URL) ?: return false
+        val body = form(deviceId, brand, model, sdk, versionName, versionCode, lang, event)
+        val connection = runCatching {
+            (URL(base, PING_PATH).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                doOutput = true
+                connectTimeout = TIMEOUT_MS
+                readTimeout = TIMEOUT_MS
+                setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+                setRequestProperty("Accept", "*/*")
+                setRequestProperty("User-Agent", "Simlet-Android")
+            }
+        }.getOrElse {
+            Log.w(TAG, "打不开上报通道: ${it.message}")
+            return false
+        }
+        return try {
+            connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+            val code = connection.responseCode
+            // 204 没有正文，但流还是要读干净：HttpURLConnection 只在连接被完整消费后才放回复用池。
+            (if (code in 200..299) connection.inputStream else connection.errorStream)?.use { it.readBytes() }
+            code in 200..299
+        } catch (error: Exception) {
+            Log.w(TAG, "上报没发出去: ${error.message}")
+            false
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun form(
+        deviceId: String,
+        brand: String,
+        model: String,
+        sdk: Int,
+        versionName: String,
+        versionCode: Int,
+        lang: String,
+        event: String
+    ): String {
+        fun enc(value: String) = URLEncoder.encode(value, "UTF-8")
+        // 长度按服务端的裁剪上限来：本机就已经不会超，省得把一长串 Build.MODEL 的营销文案发过去。
+        return "d=" + enc(deviceId) +
+            "&m=" + enc(model.take(40)) +
+            "&o=" + enc(brand.take(40)) +
+            "&s=" + sdk +
+            "&v=" + enc(versionName.take(20)) +
+            "&c=" + versionCode +
+            "&l=" + enc(lang) +
+            "&e=" + enc(event)
     }
 
     private fun readBody(connection: HttpURLConnection): HubOutcome {

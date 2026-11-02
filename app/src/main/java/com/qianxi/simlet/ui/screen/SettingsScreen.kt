@@ -20,6 +20,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import com.qianxi.simlet.BuildConfig
 import com.qianxi.simlet.R
+import com.qianxi.simlet.remote.HubRules
+import com.qianxi.simlet.remote.RemoteStore
 import com.qianxi.simlet.ui.UiPrefs
 import com.qianxi.simlet.ui.component.InfoSheet
 import com.qianxi.simlet.ui.component.OptionSheet
@@ -27,6 +29,7 @@ import com.qianxi.simlet.ui.component.RowDivider
 import com.qianxi.simlet.ui.component.SettingGroup
 import com.qianxi.simlet.ui.component.SettingRow
 import com.qianxi.simlet.ui.component.RowTail
+import com.qianxi.simlet.ui.component.StatsRow
 import com.qianxi.simlet.ui.component.UpdateSection
 import com.qianxi.simlet.ui.component.WechatRow
 import com.qianxi.simlet.ui.component.WechatSheet
@@ -71,6 +74,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val prefs = UiPrefs.of(context)
+    val remote = RemoteStore.of(context)
     val updateVm: UpdateViewModel = viewModel()
     val updateState by updateVm.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -188,6 +192,12 @@ fun SettingsScreen(
                     }
                 )
                 RowDivider()
+                // 这一行只在构建时配了后台地址才存在：开关要真能关掉一条网络链路才有意义，
+                // 而它关掉的只有统计——公告和更新检查不受这个开关影响，那是功能不是采集。
+                if (HubRules.enabled(BuildConfig.HUB_BASE_URL)) {
+                    StatsRow(on = remote.statsOn, onToggle = remote::setStatsOn)
+                    RowDivider()
+                }
                 SettingRow(
                     title = stringResource(R.string.about_privacy),
                     icon = Shield.Outline,

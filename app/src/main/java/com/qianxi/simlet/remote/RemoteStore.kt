@@ -12,8 +12,8 @@ import org.json.JSONObject
  * 单独占一个 SharedPreferences 文件：`simlet_ui` 是界面偏好，`simlet_plans` 是覆盖计划与开机补写进度，
  * 三边的读写方都不同，混在一起任何一边都会读到别人的无关数据。形状照 ui/UiPrefs.kt。
  *
- * 这里只存服务端**下发**的东西，不产出任何关于用户的记录；清除应用数据或卸载就一起没了。
- * 上报用的匿名设备 ID 不在这一层里，那是统计开关的一部分，跟着开关一起落地。
+ * 这里存的是服务端**下发**的东西，加上两个只在本机生成的值：匿名设备 ID 和灰度分桶种子。
+ * 清除应用数据或卸载就一起没了——没有第二份身份可以把它捞回来，这也是「换台设备就是另一个人」的口径。
  */
 class RemoteStore private constructor(context: Context) {
 
@@ -21,6 +21,7 @@ class RemoteStore private constructor(context: Context) {
 
     private val noticeState = mutableStateOf(readNotice())
     private val releaseState = mutableStateOf(readRelease())
+    private val statsState = mutableStateOf(store.getBoolean(KEY_STATS, HubRules.DEFAULT_STATS_ON))
 
     /**
      * 当前该显示的公告。
@@ -63,6 +64,31 @@ class RemoteStore private constructor(context: Context) {
         store.edit().putString(KEY_SEED, it).apply()
     }
 
+    /**
+     * 上报用的匿名设备 ID。
+     *
+     * 和灰度分桶的种子是两样东西，各存各的：种子永不上送，这个 ID 只出现在那一条 POST 里。
+     * 混用一个值会让「关掉统计」变得暧昧——关掉以后灰度照样要能算，
+     * 那就等于关掉统计并没有真的停掉那个唯一能认出这台设备的值。
+     * 卸载或清除应用数据会换一个新 ID，也就是当成一台新设备。
+     */
+    val deviceId: String = store.getString(KEY_DEV, null) ?: newSeed().also {
+        store.edit().putString(KEY_DEV, it).apply()
+    }
+
+    /**
+     * 用户自己的统计开关，默认开。
+     *
+     * 这是让 README 里那句「数据只最小化采集」站得住的东西，所以摆在设置页最显眼的那一组里，
+     * 而不是塞进关于页。关掉以后这条链路在代码上就没有出口。
+     */
+    val statsOn: Boolean get() = statsState.value
+
+    fun setStatsOn(on: Boolean) {
+        statsState.value = on
+        store.edit().putBoolean(KEY_STATS, on).apply()
+    }
+
     /** 上次拿到的 ETag；304 复验全靠它。 */
     val etag: String? get() = store.getString(KEY_ETAG, null)?.takeIf { it.isNotBlank() }
 
@@ -70,11 +96,18 @@ class RemoteStore private constructor(context: Context) {
 
     val bootHours: Int get() = store.getInt(KEY_BOOT_H, HubRules.DEFAULT_BOOT_HOURS)
 
+    val reportHours: Int get() = store.getInt(KEY_REPORT_H, HubRules.DEFAULT_BOOT_HOURS)
+
+    val lastReportMs: Long get() = store.getLong(KEY_REPORT, 0L)
+
+    /** 后台的熔断位。关掉时本机开关就算开着也不发。 */
+    val policyOn: Boolean get() = store.getBoolean(KEY_POLICY_ON, true)
+
     /**
      * 收到 200。
      *
-     * 策略里只落地拉取间隔：`rp`（上报间隔）和 `on`（统计开关）现在没有消费方，
-     * 存下来只会变成一份没人读的副本——等上报端点落地那步再一起写。
+     * 采集策略三项一起落：`bm`/`rp` 是两条链路的间隔，`on` 是熔断位。
+     * 存下来是为了「这一趟不重试」——后台宕了或者被人关了的时候，客户端不该每次启动都再问一遍。
      */
     fun apply(config: HubConfig, newEtag: String?, nowMs: Long) {
         val notice = config.notice
@@ -83,6 +116,8 @@ class RemoteStore private constructor(context: Context) {
             putLong(KEY_CONFIRMED, nowMs)
             putLong(KEY_ATTEMPT, nowMs)
             putInt(KEY_BOOT_H, HubRules.hours(config.policy.bootHours).toInt())
+            putInt(KEY_REPORT_H, HubRules.hours(config.policy.reportHours).toInt())
+            putBoolean(KEY_POLICY_ON, config.policy.statsOn)
             if (newEtag != null) putString(KEY_ETAG, newEtag)
             if (notice == null) {
                 remove(KEY_ID)
@@ -120,6 +155,16 @@ class RemoteStore private constructor(context: Context) {
         }.apply()
     }
 
+    /**
+     * 记一次上报尝试。
+     *
+     * 和 markAttempt 一样是「先记再发」：两个 Activity 实例挤在一起时，
+     * 写在后面挡不住重复发。传 0 是把这条撤回——发失败了得让下次启动有机会再试。
+     */
+    fun markReport(nowMs: Long) {
+        store.edit().putLong(KEY_REPORT, nowMs).apply()
+    }
+
     private fun readRelease(): HubRelease? {
         val raw = store.getString(KEY_REL, null) ?: return null
         // 缓存坏了（版本升级改过字段、或者被人手改过 prefs）就当没有，别让一次读取把首页搞崩。
@@ -144,6 +189,11 @@ class RemoteStore private constructor(context: Context) {
         private const val KEY_ATTEMPT = "hub_attempt"
         private const val KEY_CONFIRMED = "hub_confirmed"
         private const val KEY_BOOT_H = "hub_boot_h"
+        private const val KEY_REPORT = "hub_report"
+        private const val KEY_REPORT_H = "hub_report_h"
+        private const val KEY_POLICY_ON = "hub_policy_on"
+        private const val KEY_STATS = "hub_stats_on"
+        private const val KEY_DEV = "hub_dev"
         private const val KEY_SEED = "hub_seed"
         private const val KEY_REL = "hub_release"
         private const val KEY_ID = "notice_id"
