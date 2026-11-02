@@ -153,6 +153,13 @@ fun SettingsScreen(
                 onOpenPage = {
                     val url = (updateState as? UpdateState.Available)?.release?.pageUrl
                     if (!url.isNullOrBlank()) context.openWebPage(url)
+                },
+                onOpenMirror = { mirror ->
+                    // 复制提取码和打开网盘页是同一个动作：跳到浏览器后就读不到这一行了，
+                    // 而网盘页面要输的正是这一段。所以先写剪贴板再跳，一次点击走完。
+                    // 提取码为空时只剩「打开」这一个副作用，行为不变。
+                    if (mirror.code.isNotBlank()) clipboard.setText(AnnotatedString(mirror.code))
+                    context.openWebPage(mirror.url)
                 }
             )
 

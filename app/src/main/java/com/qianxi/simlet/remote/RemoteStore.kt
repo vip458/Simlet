@@ -2,6 +2,9 @@ package com.qianxi.simlet.remote
 
 import android.content.Context
 import androidx.compose.runtime.mutableStateOf
+import com.qianxi.simlet.BuildConfig
+import java.security.SecureRandom
+import org.json.JSONObject
 
 /**
  * 后台下发内容的本机缓存。
@@ -17,17 +20,48 @@ class RemoteStore private constructor(context: Context) {
     private val store = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     private val noticeState = mutableStateOf(readNotice())
+    private val releaseState = mutableStateOf(readRelease())
 
     /**
      * 当前该显示的公告。
      *
-     * 读数时按「最后一次被后台确认」判过期：后台长期不可达时这条 getter 自己就会变 null，
+     * 两道闸：构建时没配后台地址就一律不显示（本机缓存可能是上一个包留下的，
+     * fork 和自构建的「不联网、没有后台特性」不能靠缓存没写进来这件事成立）；
+     * 再按「最后一次被后台确认」判过期，后台长期不可达时这条 getter 自己就会变 null，
      * 不需要额外的清理任务。
      */
     val notice: Notice?
         get() = noticeState.value.takeIf {
-            HubRules.noticeLive(store.getLong(KEY_CONFIRMED, 0L), System.currentTimeMillis())
+            HubRules.enabled(BuildConfig.HUB_BASE_URL) &&
+                HubRules.noticeLive(store.getLong(KEY_CONFIRMED, 0L), System.currentTimeMillis())
         }
+
+    /**
+     * 后台登记的版本，用于「检查更新」和首页的重要更新提示。
+     *
+     * 存的是后台那种短键名 JSON，而不是拆成一堆 prefs 键：这个对象有十四个字段，
+     * 拆开写会让这个文件一半以上都是 putString，而且对不上契约文档。
+     *
+     * 和公告共用同一道构建时开关与同一个「最后一次被后台确认」的时间来判过期：后台停掉或域名失效之后，
+     * 一条「v1.0.3 是重要更新」不能一直挂在首页——那时点「检查更新」走的是 GitHub，
+     * 界面会一边催升级一边说已最新，两句都不可信。过了有效期这一行自己消失，
+     * 更新检查也随之直接回落 GitHub，不需要额外的清理任务。
+     */
+    val release: HubRelease?
+        get() = releaseState.value.takeIf {
+            HubRules.enabled(BuildConfig.HUB_BASE_URL) &&
+                HubRules.noticeLive(store.getLong(KEY_CONFIRMED, 0L), System.currentTimeMillis())
+        }
+
+    /**
+     * 灰度分桶用的本机种子。
+     *
+     * 只在本机参与计算，**永不上送**——统计开关关掉之后灰度照样得是准的。
+     * 卸载或清除应用数据会换一个种子，也就是重新抽一次签。
+     */
+    val bucketSeed: String = store.getString(KEY_SEED, null) ?: newSeed().also {
+        store.edit().putString(KEY_SEED, it).apply()
+    }
 
     /** 上次拿到的 ETag；304 复验全靠它。 */
     val etag: String? get() = store.getString(KEY_ETAG, null)?.takeIf { it.isNotBlank() }
@@ -44,6 +78,7 @@ class RemoteStore private constructor(context: Context) {
      */
     fun apply(config: HubConfig, newEtag: String?, nowMs: Long) {
         val notice = config.notice
+        val release = config.release
         store.edit().apply {
             putLong(KEY_CONFIRMED, nowMs)
             putLong(KEY_ATTEMPT, nowMs)
@@ -62,8 +97,14 @@ class RemoteStore private constructor(context: Context) {
                 putString(KEY_UR, notice.url)
                 putString(KEY_LV, notice.level)
             }
+            if (release == null) {
+                remove(KEY_REL)
+            } else {
+                putString(KEY_REL, release.toJson().toString())
+            }
         }.apply()
         noticeState.value = notice
+        releaseState.value = release
     }
 
     /**
@@ -77,6 +118,12 @@ class RemoteStore private constructor(context: Context) {
             putLong(KEY_ATTEMPT, nowMs)
             if (confirmed) putLong(KEY_CONFIRMED, nowMs)
         }.apply()
+    }
+
+    private fun readRelease(): HubRelease? {
+        val raw = store.getString(KEY_REL, null) ?: return null
+        // 缓存坏了（版本升级改过字段、或者被人手改过 prefs）就当没有，别让一次读取把首页搞崩。
+        return runCatching { parseRelease(JSONObject(raw)) }.getOrNull()
     }
 
     private fun readNotice(): Notice? {
@@ -97,11 +144,20 @@ class RemoteStore private constructor(context: Context) {
         private const val KEY_ATTEMPT = "hub_attempt"
         private const val KEY_CONFIRMED = "hub_confirmed"
         private const val KEY_BOOT_H = "hub_boot_h"
+        private const val KEY_SEED = "hub_seed"
+        private const val KEY_REL = "hub_release"
         private const val KEY_ID = "notice_id"
         private const val KEY_TI = "notice_title"
         private const val KEY_BD = "notice_body"
         private const val KEY_UR = "notice_url"
         private const val KEY_LV = "notice_level"
+
+        /** 16 字节随机数写成 32 位十六进制：和将来上报用的匿名设备 ID 同一个形状，但两者互不相干。 */
+        private fun newSeed(): String {
+            val bytes = ByteArray(16)
+            SecureRandom().nextBytes(bytes)
+            return bytes.joinToString("") { "%02x".format(it) }
+        }
 
         @Volatile
         private var instance: RemoteStore? = null

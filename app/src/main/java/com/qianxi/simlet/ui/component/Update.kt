@@ -26,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.qianxi.simlet.R
+import com.qianxi.simlet.update.Mirror
 import com.qianxi.simlet.update.ReleaseInfo
 import com.qianxi.simlet.update.UpdateState
 import com.qianxi.simlet.ui.theme.SimletButtonShape
@@ -47,11 +48,15 @@ fun UpdateSection(
     onCheck: () -> Unit,
     onDownload: (ReleaseInfo) -> Unit,
     onInstall: () -> Unit,
-    onOpenPage: () -> Unit
+    onOpenPage: () -> Unit,
+    onOpenMirror: (Mirror) -> Unit
 ) {
     val (status, detail) = describe(state)
     val release = (state as? UpdateState.Available)?.release
         ?: (state as? UpdateState.ReadyToInstall)?.release
+    // 镜像行只在「发现新版本」时出现：ReadyToInstall 说明包已经在本地了，再给一条下载入口只会让人
+    // 以为下载失败。它也不参与应用内下载——服务器上不存安装包，这一行点了交给浏览器。
+    val mirror = (state as? UpdateState.Available)?.release?.mirror
 
     SettingGroup(title = stringResource(R.string.settings_update_group)) {
         SettingRow(
@@ -94,6 +99,16 @@ fun UpdateSection(
                 onClick = { onDownload(release) }
             )
         }
+        if (mirror != null) {
+            RowDivider()
+            SettingRow(
+                title = stringResource(R.string.update_mirror, mirror.label),
+                // 提取码直接摆在尾值上：不复制也能看见，网盘页面要输的就是这一段。
+                value = mirror.code.takeIf { it.isNotBlank() },
+                tail = RowTail.Next,
+                onClick = { onOpenMirror(mirror) }
+            )
+        }
         if (release?.pageUrl?.isNotBlank() == true) {
             RowDivider()
             SettingRow(
@@ -110,6 +125,25 @@ fun UpdateSection(
             tail = RowTail.Next,
             enabled = state !is UpdateState.Checking && state !is UpdateState.Downloading,
             onClick = onCheck
+        )
+    }
+}
+
+/**
+ * 后台标了「重要」且这台设备在投放范围里时，首页顶部多出这一行。
+ *
+ * 就这一行：不弹窗、不拦操作、也不在设置页再说一遍。fc 的语义是「值得提醒」，不是「必须升级」——
+ * 工具类应用不该因为版本旧就把用户锁在门外。点击不去下载，而是送到设置页那一组，
+ * 因为「哪个渠道下载、要不要现在装」是用户在那一页本来就会看的地方。
+ */
+@Composable
+fun CriticalUpdateRow(versionName: String, onClick: () -> Unit) {
+    SettingGroup(title = stringResource(R.string.settings_update_group)) {
+        SettingRow(
+            title = stringResource(R.string.update_critical, versionName),
+            icon = Tag.Outline,
+            tail = RowTail.Next,
+            onClick = onClick
         )
     }
 }
@@ -191,11 +225,18 @@ private fun describe(state: UpdateState): Pair<String?, String?> = when (state) 
     UpdateState.Idle -> null to null
     UpdateState.Checking -> stringResource(R.string.update_checking) to null
     UpdateState.UpToDate -> stringResource(R.string.update_up_to_date) to null
-    is UpdateState.Available -> stringResource(R.string.update_available, state.release.versionName) to
-        // 发布说明是 GitHub 上的 markdown，长度不受我们控制：整段铺进这一行会把
-        // 下面的「下载升级包」挤出屏幕（实测 v1.0.0 的正文就把它顶没了）。
-        // 要看说明走「打开发布页」那一行，由浏览器渲染。
-        stringResource(R.string.update_no_asset).takeIf { state.release.apkUrl == null }
+    is UpdateState.Available -> {
+        // 后台带的更新说明是短文本（服务端裁到 400 字，写的是「修复了什么」），铺在这一行下面刚好。
+        // 走 GitHub 那条通道时说明是空的，也不去抓发布页正文：markdown 长度不受我们控制，
+        // 整段铺进来会把下面的「下载升级包」挤出屏幕（实测 v1.0.0 的正文就把它顶没了）。
+        // 没有安装包时宁可只说这一句——用户此刻要的是「去哪儿手动下」，不是发布说明。
+        val note: String? = if (state.release.notes.isNotBlank()) {
+            state.release.notes
+        } else {
+            stringResource(R.string.update_no_asset).takeIf { state.release.apkUrl == null }
+        }
+        stringResource(R.string.update_available, state.release.versionName) to note
+    }
 
     UpdateState.NoRelease -> stringResource(R.string.update_no_release) to
         stringResource(R.string.update_no_release_detail)

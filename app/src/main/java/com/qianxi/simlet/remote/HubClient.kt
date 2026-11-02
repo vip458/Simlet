@@ -25,7 +25,33 @@ data class Notice(
 /** 采集策略。间隔按小时，statsOn 决定后面那个上报端点要不要发。 */
 data class Policy(val bootHours: Int, val reportHours: Int, val statsOn: Boolean)
 
-data class HubConfig(val notice: Notice?, val policy: Policy)
+data class HubConfig(val notice: Notice?, val release: HubRelease?, val policy: Policy)
+
+/**
+ * 后台登记的版本。
+ *
+ * 判定新旧只看 [code]（versionCode），[name] 只是给人看的——GitHub 那条通道以前拿 versionName
+ * 比较，两个同号不同 build 的包在它眼里是同一个版本，这里不再重复那个口径。
+ *
+ * [minCode]/[maxCode]/[rollout]/[salt] 是**下发到本地再判定**的触发条件：
+ * 服务端按设备判定的话，响应内容就随设备变了，全局 ETag 当场失效，稳态流量翻几十倍。
+ */
+data class HubRelease(
+    val name: String,
+    val code: Int,
+    val pageUrl: String,
+    val apkUrl: String,
+    val sizeBytes: Int,
+    val mirrorLabel: String,
+    val mirrorUrl: String,
+    val mirrorCode: String,
+    val notes: String,
+    val critical: Boolean,
+    val minCode: Int,
+    val maxCode: Int,
+    val rollout: Int,
+    val salt: String
+)
 
 /**
  * 结果用 sealed interface 而不是异常表达，和 update/GitHubClient.kt 同一套约定：
@@ -167,6 +193,7 @@ internal fun parseHubConfig(body: String): HubConfig? = runCatching {
                 level = raw.optString("lv", "info")
             )
         }?.takeIf { it.title.isNotBlank() },
+        release = json.optJSONObject("rel")?.let { parseRelease(it) },
         policy = Policy(
             bootHours = policy?.optInt("bm", HubRules.DEFAULT_BOOT_HOURS) ?: HubRules.DEFAULT_BOOT_HOURS,
             reportHours = policy?.optInt("rp", 24) ?: 24,
@@ -174,3 +201,43 @@ internal fun parseHubConfig(body: String): HubConfig? = runCatching {
         )
     )
 }.getOrNull()
+
+/** 后台的短键名与 docs/api-contract.md 一一对应；缺字段一律给「不影响判定」的默认值。 */
+internal fun parseRelease(raw: JSONObject): HubRelease = HubRelease(
+    name = raw.optString("nm"),
+    code = raw.optInt("cd", 0),
+    pageUrl = raw.optString("pg"),
+    apkUrl = raw.optString("ap"),
+    sizeBytes = raw.optInt("sz", 0),
+    mirrorLabel = raw.optString("mn"),
+    mirrorUrl = raw.optString("mu"),
+    mirrorCode = raw.optString("mk"),
+    notes = raw.optString("nt"),
+    critical = raw.optInt("fc", 0) == 1,
+    minCode = raw.optInt("mi", 0),
+    maxCode = raw.optInt("ma", 0),
+    rollout = raw.optInt("ro", 100),
+    salt = raw.optString("bk")
+)
+
+/**
+ * 缓存用的反向转换。
+ *
+ * 存的是短键名而不是 Kotlin 字段名：这样 prefs 里的那段文本和后台发来的正文是同一种东西，
+ * 出问题时把两边对一眼就知道是解析错了还是存错了。
+ */
+internal fun HubRelease.toJson(): JSONObject = JSONObject()
+    .put("nm", name)
+    .put("cd", code)
+    .put("pg", pageUrl)
+    .put("ap", apkUrl)
+    .put("sz", sizeBytes)
+    .put("mn", mirrorLabel)
+    .put("mu", mirrorUrl)
+    .put("mk", mirrorCode)
+    .put("nt", notes)
+    .put("fc", if (critical) 1 else 0)
+    .put("mi", minCode)
+    .put("ma", maxCode)
+    .put("ro", rollout)
+    .put("bk", salt)

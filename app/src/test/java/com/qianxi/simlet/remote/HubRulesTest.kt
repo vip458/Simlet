@@ -8,11 +8,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 公告这条链路上会真的影响行为的判断都在这里钉住。
+ * 公告和更新这两条链路上会真的影响行为的判断都在这里钉住。
  *
  * 挑的不是「能跑」，而是三类出问题时用户看不见的地方：
  * 地址填错到底是静默关闭还是明文发出去、后台宕了会不会每次启动都白等一个超时、
- * 一条过期公告会不会一直挂着。
+ * 一条过期公告会不会一直挂着；以及最贵的一类——该提示的版本没提示、不该提示的设备被反复打扰。
  */
 class HubRulesTest {
 
@@ -99,5 +99,99 @@ class HubRulesTest {
         assertTrue(HubRules.noticeLive(now - day, now))
         assertTrue(HubRules.noticeLive(now - 29 * day, now))
         assertFalse(HubRules.noticeLive(now - 31 * day, now))
+    }
+
+    @Test
+    fun `只有后台登记的版本比本机新才提示`() {
+        assertFalse(HubRules.updateWanted(3, null, SEED))
+        // cd=0 是「后台没填」，不是「有个 0 号的包」。
+        assertFalse(HubRules.updateWanted(3, release(code = 0), SEED))
+        assertFalse(HubRules.updateWanted(4, release(code = 4), SEED))
+        // 本机比后台登记的还新（内测包、或后台登记的版本还没上线）：安静，不提示降级。
+        assertFalse(HubRules.updateWanted(5, release(code = 4), SEED))
+        assertTrue(HubRules.updateWanted(3, release(code = 4), SEED))
+    }
+
+    @Test
+    fun `版本区间两端都留空等于不限`() {
+        assertTrue(HubRules.inRange(3, 0, 0))
+        assertTrue(HubRules.inRange(3, 3, 0))
+        assertFalse(HubRules.inRange(2, 3, 0))
+        assertTrue(HubRules.inRange(3, 0, 3))
+        assertFalse(HubRules.inRange(4, 0, 3))
+        assertTrue(HubRules.inRange(3, 2, 4))
+        // 区间是闭区间：填 mi=3、ma=3 就是只投 3 这一个版本。
+        assertFalse(HubRules.updateWanted(3, release(code = 4, minCode = 4), SEED))
+        assertFalse(HubRules.updateWanted(3, release(code = 4, maxCode = 2), SEED))
+    }
+
+    @Test
+    fun `灰度百分之百全命中，零全不命中`() {
+        assertTrue(HubRules.inRollout(SEED, "v4", 100))
+        assertFalse(HubRules.inRollout(SEED, "v4", 0))
+        assertFalse(HubRules.inRollout(SEED, "v4", -1))
+        assertTrue(HubRules.inRollout(SEED, "v4", 101))
+        // 中间的档位就是「桶号 < 百分比」：判定和桶号在同一处定义，不会出现两套口径。
+        val bucket = HubRules.bucketOf(SEED, "v4")
+        assertFalse(HubRules.inRollout(SEED, "v4", bucket))
+        assertTrue(HubRules.inRollout(SEED, "v4", bucket + 1))
+    }
+
+    @Test
+    fun `桶号稳定且落在 0 到 99`() {
+        assertEquals(HubRules.bucketOf(SEED, "v4"), HubRules.bucketOf(SEED, "v4"))
+        for (salt in listOf("v4", "r4", "v10", "8k2d")) {
+            val bucket = HubRules.bucketOf(SEED, salt)
+            assertTrue("桶号越界：$bucket", bucket in 0..99)
+        }
+        // 换桶盐要真的换一批设备：同一台机器在两个盐下多数情况会落到不同桶，
+        // 否则「把同一个版本重投另一批」这个功能就是空的。
+        val buckets = (0 until 50).map { HubRules.bucketOf("seed$it", "v4") to HubRules.bucketOf("seed$it", "r4") }
+        assertTrue("换盐后桶号完全没变", buckets.any { it.first != it.second })
+    }
+
+    @Test
+    fun `灰度按百分比放量，比例落在同一量级`() {
+        // 35% 的投放不该出现「一个人都不中」或「全都中」。200 台设备是个折衷：
+        // 二项分布的标准差约 6.7，取 ±2σ 的界，既能钉住实现走样，又不会让测试随机翻红。
+        val hit = (0 until 200).count { HubRules.inRollout("seed$it", "v4", 35) }
+        assertTrue("命中数异常：$hit", hit in 21..119)
+    }
+
+    @Test
+    fun `投放范围外的设备不提示，范围内的照常`() {
+        // 后台一次投放同时带区间和灰度：区间外的 3 号设备安静，区间内的 3 号设备命中。
+        assertTrue(HubRules.updateWanted(3, release(code = 4, minCode = 3, rollout = 100), SEED))
+        assertFalse(HubRules.updateWanted(3, release(code = 4, minCode = 3, rollout = 0), SEED))
+        assertTrue(HubRules.updateWanted(3, release(code = 4, rollout = 100, critical = true), SEED))
+    }
+
+    private fun release(
+        code: Int = 4,
+        minCode: Int = 0,
+        maxCode: Int = 0,
+        rollout: Int = 100,
+        salt: String = "v4",
+        critical: Boolean = false
+    ) = HubRelease(
+        name = "1.0.3",
+        code = code,
+        pageUrl = "https://github.com/vip458/Simlet/releases/tag/v1.0.3",
+        apkUrl = "https://github.com/vip458/Simlet/releases/download/v1.0.3/app-release.apk",
+        sizeBytes = 1438720,
+        mirrorLabel = "夸克网盘",
+        mirrorUrl = "https://pan.quark.cn/s/000000000000",
+        mirrorCode = "提取码 8k2d",
+        notes = "1. 修复无法识别sim卡问题",
+        critical = critical,
+        minCode = minCode,
+        maxCode = maxCode,
+        rollout = rollout,
+        salt = salt
+    )
+
+    private companion object {
+        /** 固定种子：分桶测试结果必须可复现，所以这里不能用随机种子。 */
+        const val SEED = "0f1e2d3c4b5a69788796a5b4c3d2e1f0"
     }
 }

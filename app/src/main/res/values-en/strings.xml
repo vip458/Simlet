@@ -127,6 +127,8 @@
     <string name="update_install_blocked">Allow installing unknown apps</string>
     <string name="update_install_blocked_detail">Grant "install unknown apps" in system settings first</string>
     <string name="update_open_page">Open release page</string>
+    <string name="update_mirror">Download via %1$s</string>
+    <string name="update_critical">v%1$s is an important update</string>
     <string name="update_channel">WeChat channel</string>
     <string name="update_channel_detail">Release notices; installers come from the release page</string>
     <string name="update_channel_account">Official account</string>

@@ -6,12 +6,20 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
+/** 网盘镜像。服务器上不存安装包，这一行只是一个加速入口，点了交给浏览器。 */
+data class Mirror(val label: String, val url: String, val code: String)
+
 /** 一条 GitHub Release 里我们关心的字段。 */
 data class ReleaseInfo(
     val tagName: String,
     val versionName: String,
     val pageUrl: String,
-    val apkUrl: String?
+    val apkUrl: String?,
+    /** 后台下发的更新说明。走 GitHub 那条通道时是空的——发布页的 markdown 不适合铺在行下面。 */
+    val notes: String = "",
+    /** 后台标记的重要更新：首页顶部多一条提示，但不拦任何操作。 */
+    val critical: Boolean = false,
+    val mirror: Mirror? = null
 )
 
 /** 检查结果用枚举而不是异常表达：异常 message 会被当成详情文本上屏，那样就没法本地化。 */

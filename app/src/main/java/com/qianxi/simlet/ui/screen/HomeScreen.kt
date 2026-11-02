@@ -35,10 +35,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.qianxi.simlet.BuildConfig
 import com.qianxi.simlet.R
 import com.qianxi.simlet.data.RegionCatalog
+import com.qianxi.simlet.remote.HubRules
 import com.qianxi.simlet.remote.RemoteStore
 import com.qianxi.simlet.ui.SimletViewModel
+import com.qianxi.simlet.ui.component.CriticalUpdateRow
 import com.qianxi.simlet.ui.component.HelpSheet
 import com.qianxi.simlet.ui.component.IsoPicker
 import com.qianxi.simlet.ui.component.NoticeSection
@@ -133,6 +136,15 @@ fun HomeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { insets ->
         AppColumn(insets) {
+            // 后台标了「重要」、且这台设备在投放范围里，才多出这一行。
+            // 摆在最上面不担心挡住操作：保存/还原在底部栏里，不随内容滚动。
+            // 判定复用 HubRules——和设置页那次检查是同一条规则，两处不可能给出相反的答案。
+            remote.release
+                ?.takeIf { it.critical && HubRules.updateWanted(BuildConfig.VERSION_CODE, it, remote.bucketSeed) }
+                ?.let { pending ->
+                    CriticalUpdateRow(versionName = pending.name, onClick = onOpenSettings)
+                }
+
             SettingGroup(title = stringResource(R.string.section_sim_cards)) {
                 when {
                     state.loading -> Column(Modifier.padding(20.dp)) { SkeletonBlock(lines = 2) }

@@ -80,4 +80,45 @@ object HubRules {
 
     /** 缓存有效期：比拉取间隔的上限（720 小时=30 天）还长就没意义了，取两者的同一个数。 */
     private const val CACHE_MS = 30 * 24 * 60 * 60 * 1000L
+
+    /**
+     * 这台设备要不要提示更新。
+     *
+     * 顺序是有讲究的：先看有没有更新的版本，再看版本区间，最后看灰度。
+     * 区间的语义更硬（「这个包不是给你这个版本准备的」），灰度只是投放节奏。
+     */
+    fun updateWanted(mineCode: Int, release: HubRelease?, seed: String): Boolean {
+        if (release == null || release.code <= 0) return false
+        if (mineCode >= release.code) return false
+        if (!inRange(mineCode, release.minCode, release.maxCode)) return false
+        return inRollout(seed, release.salt, release.rollout)
+    }
+
+    /** 区间两端都用 0 表示不限。填反了（上限比下限小）在服务端就被挡了，这里不再兜。 */
+    fun inRange(code: Int, minCode: Int, maxCode: Int): Boolean {
+        if (minCode > 0 && code < minCode) return false
+        return !(maxCode > 0 && code > maxCode)
+    }
+
+    /**
+     * 灰度命中判定。
+     *
+     * 桶号只由「本机种子 + 服务端盐」决定，所以同一台设备在同一批投放里结果稳定；
+     * 后台换一个盐就能把同一个版本号重新投给另一批设备，不用动 versionCode。
+     *
+     * 用本机随机种子而不是匿名设备 ID 分桶，是为了「关掉统计之后灰度照样准」——
+     * 设备 ID 一关就没法判，那等于让隐私开关顺带改变了功能可见性。
+     */
+    fun inRollout(seed: String, salt: String, percent: Int): Boolean {
+        if (percent >= 100) return true
+        if (percent <= 0) return false
+        return bucketOf(seed, salt) < percent
+    }
+
+    /** 0~99。crc32 在 Android 和 JVM 上是同一份 java.util.zip 实现，跨版本稳定。 */
+    fun bucketOf(seed: String, salt: String): Int {
+        val crc = java.util.zip.CRC32()
+        crc.update((seed + ":" + salt).toByteArray(Charsets.UTF_8))
+        return (crc.value % 100L).toInt()
+    }
 }

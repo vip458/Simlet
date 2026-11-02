@@ -129,6 +129,8 @@
     <string name="update_install_blocked">需要允许安装未知应用</string>
     <string name="update_install_blocked_detail">系统尚未授予「安装未知应用」，先前往设置打开</string>
     <string name="update_open_page">查看发布页</string>
+    <string name="update_mirror">通过%1$s下载</string>
+    <string name="update_critical">v%1$s 是重要更新，建议升级</string>
     <string name="update_channel">公众号渠道</string>
     <string name="update_channel_detail">发版通知，安装包以发布页为准</string>
     <string name="update_channel_account">公众号</string>
