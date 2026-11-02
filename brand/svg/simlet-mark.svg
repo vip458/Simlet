@@ -1,8 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Simlet">
   <!-- 纯图形（透明底，不放大）。嵌在别的版面里用；底色太深时改用 simlet-icon-mono.svg 单涂白。 -->
   <path fill="#FCFCFC" d="M222 116 L350 116 Q376 116 376 142 L376 370 Q376 396 350 396 L162 396 Q136 396 136 370 L136 202 Q136 192 143.07 184.93 L204.93 123.07 Q212 116 222 116 Z"/>
-  <g fill="none" stroke="#131313" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M200,228 L312,228 M284,200 L312,228 L284,256"/>
-    <path d="M312,290 L200,290 M228,262 L200,290 L228,318"/>
-  </g>
+    <g fill="#131313"><rect x="188" y="288" width="30" height="46" rx="10"/><rect x="228" y="262" width="30" height="72" rx="10"/><rect x="268" y="236" width="30" height="98" rx="10"/><rect x="308" y="210" width="30" height="124" rx="10"/></g>
 </svg>

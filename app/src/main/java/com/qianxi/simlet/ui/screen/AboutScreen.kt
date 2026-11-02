@@ -32,12 +32,19 @@ import dev.reicon.MessageCircle
 
 private const val PROJECT_URL = "https://github.com/vip458/Simlet"
 
-/**
- * 反馈群只放群号：QQ 的加群跳转链接带一次性签名 token，
- * 那种 URL 公开在仓库里等于把群主的凭据发出去，而且会过期。
- * 所以这里点一下复制群号，用户自己去 QQ 搜。
- */
 private const val QQ_GROUP = "551772286"
+
+/**
+ * 点这一行跳去 QQ 加群。
+ *
+ * 只认群二维码里那条 `https://qm.qq.com/cgi-bin/qm/qr?k=…`：key 属于群本身，谁点都一样，
+ * 公开在仓库里没有代价。另一种 `qun.qq.com/universal-share/share?…busi_data=…` 的
+ * base64 里解出来是群主的 uin 加一次性 token，那种串进仓库等于把群主凭据发出去，
+ * 而且过一阵就失效，所以不用它。
+ *
+ * 空串 = 还没拿到群二维码链接，这时点这一行退回「复制群号」。
+ */
+private const val QQ_JOIN_URL = ""
 
 /**
  * 关于页：居中 logo 块 + 行列表 + 底部灰脚注，全部照参考稿那张关于页的结构。
@@ -92,8 +99,12 @@ fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit) {
                     icon = MessageCircle.Outline,
                     value = stringResource(R.string.about_feedback_value),
                     onClick = {
-                        clipboard.setText(AnnotatedString(QQ_GROUP))
-                        Toast.makeText(context, copiedHint, Toast.LENGTH_SHORT).show()
+                        if (QQ_JOIN_URL.isEmpty()) {
+                            clipboard.setText(AnnotatedString(QQ_GROUP))
+                            Toast.makeText(context, copiedHint, Toast.LENGTH_SHORT).show()
+                        } else {
+                            context.openWebPage(QQ_JOIN_URL)
+                        }
                     }
                 )
                 RowDivider()

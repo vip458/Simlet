@@ -1,19 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Simlet">
   <!--
-    Simlet 主图标。512×512，三层：方形圆角底 / SIM 卡 / 双向箭头。
-    左上斜切角说明「这是 SIM」，卡心一上一下两条反向箭头说明「被改写」——
-    国家码和运营商名都是覆盖掉系统读到的那份配置，不改卡本身。
+    Simlet 主图标。512×512，三层：方形圆角底 / SIM 卡 / 运营商信号格。
+    左上斜切角说明「这是 SIM」，卡心四根递增的格子说明「信号/运营商」——
+    应用改的就是系统从这张卡读到的国家码与运营商名，不动卡本身。
     几何与用色见 brand/README.md；改形状要连同 app/src/main/res/drawable/ic_launcher_*.xml 一起改。
   -->
   <rect width="512" height="512" rx="116" fill="#699973"/>
-  <!-- 图形本体按 240×280 的卡画在 (256,256) 上，再整体放大 1.15 撑满底 -->
   <g transform="translate(256 256) scale(1.15) translate(-256 -256)">
-    <!-- SIM 卡：240×280，圆角 26，左上 76 斜切（斜切两端各倒 10 圆角） -->
     <path fill="#FCFCFC" d="M222 116 L350 116 Q376 116 376 142 L376 370 Q376 396 350 396 L162 396 Q136 396 136 370 L136 202 Q136 192 143.07 184.93 L204.93 123.07 Q212 116 222 116 Z"/>
-    <!-- 双向箭头：26 描边、圆帽圆角，上条向右、下条向左，两条错开半个身位 -->
-    <g fill="none" stroke="#131313" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M200,228 L312,228 M284,200 L312,228 L284,256"/>
-      <path d="M312,290 L200,290 M228,262 L200,290 L228,318"/>
-    </g>
+    <g fill="#131313"><rect x="188" y="288" width="30" height="46" rx="10"/><rect x="228" y="262" width="30" height="72" rx="10"/><rect x="268" y="236" width="30" height="98" rx="10"/><rect x="308" y="210" width="30" height="124" rx="10"/></g>
   </g>
 </svg>

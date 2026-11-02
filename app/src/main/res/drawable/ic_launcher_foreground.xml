@@ -21,18 +21,18 @@
         <path
             android:fillColor="#FCFCFC"
             android:pathData="M222,116 L350,116 Q376,116 376,142 L376,370 Q376,396 350,396 L162,396 Q136,396 136,370 L136,202 Q136,192 143.07,184.93 L204.93,123.07 Q212,116 222,116 Z" />
-        <!-- 双向箭头：上条向右、下条向左 -->
+        <!-- 运营商信号格：四根同底线、递增 36 -->
         <path
-            android:strokeColor="#131313"
-            android:strokeWidth="26"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round"
-            android:pathData="M200,228 L312,228 M284,200 L312,228 L284,256" />
+            android:fillColor="#131313"
+            android:pathData="M198,288 H208 A10,10 0 0 1 218,298 V324 A10,10 0 0 1 208,334 H198 A10,10 0 0 1 188,324 V298 A10,10 0 0 1 198,288 Z" />
         <path
-            android:strokeColor="#131313"
-            android:strokeWidth="26"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round"
-            android:pathData="M312,290 L200,290 M228,262 L200,290 L228,318" />
+            android:fillColor="#131313"
+            android:pathData="M238,262 H248 A10,10 0 0 1 258,272 V324 A10,10 0 0 1 248,334 H238 A10,10 0 0 1 228,324 V272 A10,10 0 0 1 238,262 Z" />
+        <path
+            android:fillColor="#131313"
+            android:pathData="M278,236 H288 A10,10 0 0 1 298,246 V324 A10,10 0 0 1 288,334 H278 A10,10 0 0 1 268,324 V246 A10,10 0 0 1 278,236 Z" />
+        <path
+            android:fillColor="#131313"
+            android:pathData="M318,210 H328 A10,10 0 0 1 338,220 V324 A10,10 0 0 1 328,334 H318 A10,10 0 0 1 308,324 V220 A10,10 0 0 1 318,210 Z" />
     </group>
 </vector>
