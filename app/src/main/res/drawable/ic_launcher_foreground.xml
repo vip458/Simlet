@@ -1,14 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- SIM 卡轮廓 + 信号折线，108x108 安全区内 -->
+<!--
+  启动图标前景层。几何与 brand/svg/simlet-icon.svg 完全同源：同一批路径写在 512 画布上，
+  再用 group 的缩放搬进 108 的自适应画布。0.1746 = 32.2 / 184.4（卡角到中心的距离），
+  这样卡的四个角正好落在 66dp 可见圆里，被圆形蒙版切掉的是底而不是卡。
+  改形状请连 brand/svg 一起改，两边不要各画一套。
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
         android:width="108dp"
         android:height="108dp"
         android:viewportWidth="108"
         android:viewportHeight="108">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M36,30 h26 a6,6 0 0 1 6,6 v8 l10,6 v34 a6,6 0 0 1 -6,6 h-36 a6,6 0 0 1 -6,-6 v-48 a6,6 0 0 1 6,-6 z M40,52 h18 v14 h-18 z"/>
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M74,34 a14,14 0 0 1 0,20 l3,3 a18,18 0 0 0 0,-26 z"/>
+    <group
+        android:pivotX="256"
+        android:pivotY="256"
+        android:scaleX="0.1746"
+        android:scaleY="0.1746"
+        android:translateX="-202"
+        android:translateY="-202">
+        <!-- SIM 卡：左上 76 斜切 -->
+        <path
+            android:fillColor="#FCFCFC"
+            android:pathData="M222,116 L350,116 Q376,116 376,142 L376,370 Q376,396 350,396 L162,396 Q136,396 136,370 L136,202 Q136,192 143.07,184.93 L204.93,123.07 Q212,116 222,116 Z" />
+        <!-- 定位图钉 -->
+        <path
+            android:fillColor="#131313"
+            android:pathData="M256,333 L301.5,262.2 A54,54 0 1 0 210.5,262.2 Z" />
+        <path
+            android:fillColor="#FCFCFC"
+            android:pathData="M236,233 a20,20 0 0 1 40,0 a20,20 0 0 1 -40,0 Z" />
+    </group>
 </vector>
