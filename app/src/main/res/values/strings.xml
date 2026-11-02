@@ -146,7 +146,8 @@
     <string name="about_developer">开发者</string>
     <string name="about_developer_name">千喜</string>
     <string name="about_feedback">反馈交流</string>
-    <string name="about_feedback_value">QQ 群 1049211484</string>
+    <string name="about_feedback_value">QQ 群 551772286</string>
+    <string name="about_feedback_copied">群号已复制：%1$s，在 QQ 里搜索加群</string>
     <string name="about_license">开源许可</string>
     <string name="about_privacy">权限与数据</string>
     <string name="about_privacy_body">所有 SIM 操作经 Shizuku 授权完成，不申请运行时权限；除检查更新外不发任何网络请求，数据只存本机。</string>

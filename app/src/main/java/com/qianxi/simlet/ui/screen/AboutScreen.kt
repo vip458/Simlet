@@ -1,5 +1,6 @@
 package com.qianxi.simlet.ui.screen
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,9 +11,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.qianxi.simlet.BuildConfig
@@ -29,11 +32,12 @@ import dev.reicon.MessageCircle
 
 private const val PROJECT_URL = "https://github.com/vip458/Simlet"
 
-/** QQ 群分享链，带群号与加群凭据；换群要重新生成。 */
-private const val QQ_GROUP_URL =
-    "https://qun.qq.com/universal-share/share?ac=1&authKey=vEK5KHw%2FmB09yJfTUGb8zNt0zh20n6i859rEQQRXyVKMXT%2BHYQ8o%2BQy6hr243gN6" +
-        "&busi_data=eyJncm91cENvZGUiOiIxMDQ5MjExNDg0IiwidG9rZW4iOiJtWUc3aVlwM01hUEN1TDN2UkhHOVlEUWk2TUQ1QmgwZk41SnlvSHVqOHJMSkNlNHFkNGZNY0dZbjk0Vk05QW1jIiwidWluIjoiNDU4NjU1NzMyIn0%3D" +
-        "&data=xNOHX1aej9QNrV7KWcTHAMAis85bkBDqpi_9qWz-OclTQPpv5LdkAfE_wqAHNmjlN095vav5KQ11BEmav6CZOQ&svctype=4&tempid=h5_group_info"
+/**
+ * 反馈群只放群号：QQ 的加群跳转链接带一次性签名 token，
+ * 那种 URL 公开在仓库里等于把群主的凭据发出去，而且会过期。
+ * 所以这里点一下复制群号，用户自己去 QQ 搜。
+ */
+private const val QQ_GROUP = "551772286"
 
 /**
  * 关于页：居中 logo 块 + 行列表 + 底部灰脚注，全部照参考稿那张关于页的结构。
@@ -44,6 +48,8 @@ private const val QQ_GROUP_URL =
 @Composable
 fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit) {
     val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    val copiedHint = stringResource(R.string.about_feedback_copied, QQ_GROUP)
     AppScaffold(title = stringResource(R.string.about_title), onBack = onBack) { insets ->
         AppColumn(insets) {
             SettingGroup {
@@ -85,8 +91,10 @@ fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit) {
                     title = stringResource(R.string.about_feedback),
                     icon = MessageCircle.Outline,
                     value = stringResource(R.string.about_feedback_value),
-                    tail = RowTail.Next,
-                    onClick = { context.openWebPage(QQ_GROUP_URL) }
+                    onClick = {
+                        clipboard.setText(AnnotatedString(QQ_GROUP))
+                        Toast.makeText(context, copiedHint, Toast.LENGTH_SHORT).show()
+                    }
                 )
                 RowDivider()
                 SettingRow(

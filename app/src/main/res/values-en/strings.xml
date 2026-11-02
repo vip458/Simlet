@@ -144,7 +144,8 @@
     <string name="about_developer">Developer</string>
     <string name="about_developer_name">千喜</string>
     <string name="about_feedback">Feedback</string>
-    <string name="about_feedback_value">QQ group 1049211484</string>
+    <string name="about_feedback_value">QQ group 551772286</string>
+    <string name="about_feedback_copied">Group number copied: %1$s. Paste it into QQ\'s search box to join.</string>
     <string name="about_license">License</string>
     <string name="about_privacy">Permissions &amp; data</string>
     <string name="about_privacy_body">All SIM changes run under Shizuku authorization and the app asks for no runtime permissions. Update checks are the only network request, and every record stays on this device.</string>
