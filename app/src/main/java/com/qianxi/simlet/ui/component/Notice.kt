@@ -14,8 +14,8 @@ import androidx.compose.ui.unit.dp
 import com.qianxi.simlet.R
 import com.qianxi.simlet.remote.Notice
 import com.qianxi.simlet.ui.openWebPage
+import dev.reicon.Bullhorn
 import dev.reicon.Globe
-import dev.reicon.InfoCircle
 
 /**
  * 公告分组。
@@ -30,7 +30,7 @@ fun NoticeSection(notice: Notice, unread: Boolean, onOpen: () -> Unit) {
     SettingGroup(title = stringResource(R.string.notice_group)) {
         SettingRow(
             title = notice.title,
-            icon = InfoCircle.Outline,
+            icon = Bullhorn.Outline,
             // 普通级别不给徽章：彩色位一次只承载一个信号，红点已经占了。
             badge = when (notice.level) {
                 "warn" -> stringResource(R.string.notice_level_warn)

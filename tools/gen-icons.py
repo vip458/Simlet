@@ -45,6 +45,7 @@ ICONS = [
     "settings",      # 首页顶栏设置 / 环境自检主图
     "shield",        # 设置 · 权限与数据
     "sim",           # SIM 卡行
+    "bullhorn",      # 首页 · 公告（扩音器；info-circle 读起来是「这条的说明」，不是「有通告」）
     "tag",           # 设置 · 当前版本
     "tower",         # 运营商名称（signal 那支画的是节点图，不像运营商）
     "xmark",         # 居中弹窗标题栏的关闭

@@ -12,6 +12,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -41,6 +43,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -48,6 +53,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.qianxi.simlet.R
 import com.qianxi.simlet.ui.theme.SimletButtonShape
+import dev.reicon.ChevronDown
+import dev.reicon.ChevronUp
 import dev.reicon.Xmark
 import kotlinx.coroutines.delay
 
@@ -131,13 +138,23 @@ fun SimletDialog(
                             }
                         }
                         DialogDivider()
-                        Column(
-                            modifier = Modifier
-                                .weight(1f, fill = false)
-                                .verticalScroll(rememberScrollState())
-                                .padding(horizontal = 20.dp, vertical = 16.dp),
-                            content = content
-                        )
+                        // 正文还能往前滚时压一道底部渐隐 + 向下箭头：实测过长公告滑到底部渐隐之前，
+                        // 用户会当成「就这些」，而裁掉的恰好是最后一句。
+                        val scroll = rememberScrollState()
+                        Box(Modifier.weight(1f, fill = false)) {
+                            Column(
+                                modifier = Modifier
+                                    .verticalScroll(scroll)
+                                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                                content = content
+                            )
+                            if (scroll.canScrollForward) {
+                                EdgeFade(Alignment.BottomCenter, ChevronDown.Outline)
+                            }
+                            if (scroll.canScrollBackward) {
+                                EdgeFade(Alignment.TopCenter, ChevronUp.Outline)
+                            }
+                        }
                         if (confirmText != null || secondaryText != null || dismissText != null) {
                             DialogDivider()
                             // FlowRow 而不是 Row：三颗按钮（稍后再说 / 通过网盘下载 / 去下载）在 375dp 屏上
@@ -171,9 +188,40 @@ fun SimletDialog(
     }
 }
 
+/**
+ * 正文还能滚时贴在窗口上下沿的一道渐隐 + 箭头。
+ *
+ * 渐隐色就是窗体底色，所以它看起来像「内容被窗体吃掉了一截」而不是多了一条装饰带。
+ */
 @Composable
-private fun DialogDivider() {
-    Spacer(
+private fun BoxScope.EdgeFade(edge: Alignment, chevron: ImageVector) {
+    Box(
+        Modifier
+            .align(edge)
+            .fillMaxWidth()
+            .height(30.dp)
+            .background(
+                if (edge == Alignment.BottomCenter) {
+                    Brush.verticalGradient(listOf(Color.Transparent, MaterialTheme.colorScheme.surfaceContainerLow))
+                } else {
+                    Brush.verticalGradient(listOf(MaterialTheme.colorScheme.surfaceContainerLow, Color.Transparent))
+                }
+            )
+    ) {
+        Icon(
+            chevron,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.outline,
+            modifier = Modifier
+                .align(edge)
+                .padding(bottom = if (edge == Alignment.BottomCenter) 4.dp else 0.dp)
+                .size(15.dp)
+        )
+    }
+}
+
+@Composable
+private fun DialogDivider() {    Spacer(
         Modifier
             .fillMaxWidth()
             .height(1.dp)

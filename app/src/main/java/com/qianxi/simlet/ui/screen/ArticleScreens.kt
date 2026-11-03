@@ -61,8 +61,8 @@ private fun ArticleScreen(
 /**
  * 隐私政策。
  *
- * 这份文本的存在理由就是它不粉饰：早期版本说过「除检查更新外不发任何网络请求」，
- * 接上公告与匿名统计之后那句话不再成立，所以这里改成逐条清单，并把改动本身写在最后一段里。
+ * 只写结论，不写论证：这类页面是给用户五分钟扫一遍的，「我们为什么这样设计」属于开发者文档。
+ * 上一版里那句「早期版本说过不联网」也搬走了——那是版本史，不是政策。
  */
 @Composable
 fun PrivacyScreen(onBack: () -> Unit) {
@@ -73,14 +73,13 @@ fun PrivacyScreen(onBack: () -> Unit) {
             R.string.privacy_h2 to R.string.privacy_b2,
             R.string.privacy_h3 to R.string.privacy_b3,
             R.string.privacy_h4 to R.string.privacy_b4,
-            R.string.privacy_h5 to R.string.privacy_b5,
-            R.string.privacy_h6 to R.string.privacy_b6
+            R.string.privacy_h5 to R.string.privacy_b5
         ),
         onBack = onBack
     )
 }
 
-/** 用户协议：用途限制、风险归属、免责、许可四件是这套工具类应用必须说清的。 */
+/** 用户协议：用途、风险、免责三件是这套工具类应用必须说清的，其余一句带过。 */
 @Composable
 fun TermsScreen(onBack: () -> Unit) {
     ArticleScreen(
@@ -92,8 +91,7 @@ fun TermsScreen(onBack: () -> Unit) {
             R.string.terms_h4 to R.string.terms_b4,
             R.string.terms_h5 to R.string.terms_b5,
             R.string.terms_h6 to R.string.terms_b6,
-            R.string.terms_h7 to R.string.terms_b7,
-            R.string.terms_h8 to R.string.terms_b8
+            R.string.terms_h7 to R.string.terms_b7
         ),
         onBack = onBack
     )
@@ -114,8 +112,7 @@ fun StatsScreen(onBack: () -> Unit, statsOn: Boolean, onToggle: (Boolean) -> Uni
             R.string.stats_h2 to R.string.stats_b2,
             R.string.stats_h3 to R.string.stats_b3,
             R.string.stats_h4 to R.string.stats_b4,
-            R.string.stats_h5 to R.string.stats_b5,
-            R.string.stats_h6 to R.string.stats_b6
+            R.string.stats_h5 to R.string.stats_b5
         ),
         onBack = onBack,
         tail = {
