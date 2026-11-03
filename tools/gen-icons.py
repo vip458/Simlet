@@ -47,6 +47,7 @@ ICONS = [
     "sim",           # SIM 卡行
     "tag",           # 设置 · 当前版本
     "tower",         # 运营商名称（signal 那支画的是节点图，不像运营商）
+    "xmark",         # 居中弹窗标题栏的关闭
 ]
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

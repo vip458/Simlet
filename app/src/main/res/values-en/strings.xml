@@ -140,6 +140,62 @@
     <string name="update_channel_qr">WeChat QR code</string>
     <string name="update_copied">Copied</string>
 
+    <!-- Centered dialog: the only three button labels the shared container uses -->
+    <string name="dialog_close">Close</string>
+    <string name="dialog_later">Later</string>
+    <string name="dialog_got_it">Got it</string>
+    <string name="update_go_download">Download</string>
+    <string name="update_dialog_empty">No release notes for this version — the change list is on the release page.</string>
+    <string name="update_dialog_meta">You are on v%1$s · packages come from GitHub Releases; this app never downloads or installs by itself</string>
+
+    <!-- Three text links at the bottom of About, each opening its own page -->
+    <string name="privacy_title">Privacy policy</string>
+    <string name="terms_title">Terms of use</string>
+    <string name="stats_title">Usage statistics</string>
+
+    <string name="privacy_h1">What it needs to run</string>
+    <string name="privacy_b1">No permission dialogs, ever. The app requests no runtime permissions and never reads contacts, location, camera, microphone or storage. Every SIM change goes through Shizuku, which you authorize inside Shizuku itself; without it the app can only read.</string>
+    <string name="privacy_h2">What each declared permission is for</string>
+    <string name="privacy_b2">· INTERNET — checking for updates and downloading the package\n· RECEIVE_BOOT_COMPLETED — re-applying the override you already saved after a reboot. That comes with saving a plan; there is no separate switch, and once you tap Restore there is nothing left to re-apply\n· REQUEST_INSTALL_PACKAGES — handing the downloaded file to the system installer, where you decide whether to install\n· MODIFY_PHONE_STATE and READ_PHONE_STATE — privileged permissions a normal app cannot hold. They are declared only so Shizuku\'s shell delegation can lend them to this process; without them its own check refuses the write</string>
+    <string name="privacy_h3">Where your data lives</string>
+    <string name="privacy_b3">The slot you pick, the country code and the carrier name you set are stored only in this app\'s private directory on your phone. Nothing is uploaded, nothing is backed up to a cloud, and uninstalling or clearing app data removes it.</string>
+    <string name="privacy_h4">When it touches the network</string>
+    <string name="privacy_b4">Exactly three things: the update check, when you tap it, which goes to GitHub; notices, fetched at most once a day; and one anonymous usage record per day, which you can turn off on the Usage statistics page. Nothing else makes a request — no analytics, no ads, no log upload.</string>
+    <string name="privacy_h5">What is never collected</string>
+    <string name="privacy_b5">Phone number, IMSI, ICCID, hardware serial, your carrier, the country code or name you typed, whether you saved or restored, location, accounts, advertising identifiers. Those fields do not exist in this codebase.</string>
+    <string name="privacy_h6">One honest note</string>
+    <string name="privacy_b6">Earlier builds claimed \"no network requests besides the update check\". That stopped being true once notices and anonymous statistics were added, so it is replaced by the list above instead of one reassuring sentence.</string>
+
+    <string name="terms_h1">What this app is</string>
+    <string name="terms_b1">Simlet changes the country code and carrier name a SIM shows in the system, working together with Shizuku. It edits the carrier configuration the system reads — it does not write to the SIM card itself, and you can restore at any time.</string>
+    <string name="terms_h2">What this app is not</string>
+    <string name="terms_b2">It does not unlock carrier restrictions, bypass network locks, change IMEI, or provide any unlocking, cracking or billing-evasion capability.</string>
+    <string name="terms_h3">Permitted use</string>
+    <string name="terms_b3">For learning and research only, and only on devices and SIM cards you are entitled to modify. It supports no unlawful use — impersonating a carrier, faking another person\'s device, evading carrier billing — and the author is not responsible for what a user does with it.</string>
+    <string name="terms_h4">Risk is yours</string>
+    <string name="terms_b4">Changing the displayed carrier information can affect calls, SMS or mobile data; some devices and carriers refuse to restore, and you would need to contact your carrier in that case. You use this app at your own risk and the author accepts no liability for the consequences.</string>
+    <string name="terms_h5">No warranty</string>
+    <string name="terms_b5">The app is provided \"AS IS\", without warranties or conditions of any kind, either express or implied, including merchantability, fitness for a particular purpose and non-infringement (Apache-2.0, section 8).</string>
+    <string name="terms_h6">Licence and source</string>
+    <string name="terms_b6">The app is open source under Apache-2.0: you may use, modify and redistribute it as long as the copyright and licence notices stay. Icons come from Reicon (MIT). The optional self-hosted hub is not open source, but everything it does to a client is constrained by the published API contract.</string>
+    <string name="terms_h7">Updates and downloads</string>
+    <string name="terms_b7">GitHub Releases is the authoritative source for updates. The app never downloads or installs anything by itself: every download hands the link to your browser, and you save and install the package yourself.</string>
+    <string name="terms_h8">Changes to these terms</string>
+    <string name="terms_b8">These terms ship with each release, so what you read in the app is the version in force for the build you are using.</string>
+
+    <string name="stats_h1">What is reported</string>
+    <string name="stats_b1">An anonymous ID generated on this device only (16 random bytes; uninstalling or clearing app data produces a new one), the device brand and model, the Android version, the app version and your language. At most one record per day, sent when the app starts.</string>
+    <string name="stats_h2">What is not reported</string>
+    <string name="stats_b2">Nothing about your SIMs: no numbers, no carrier, no country code or name you set, no save or restore actions. No location, no accounts, no hardware serials. That anonymous ID is a one-time random number, not derived from any hardware identifier, and it cannot be traced back to any field above.</string>
+    <string name="stats_h3">Why it is collected</string>
+    <string name="stats_b3">It answers two questions and nothing else: how many people still use this app, and whether a particular device model is worth keeping supported (for example a model that cannot read the card). No single device\'s history is ever looked at.</string>
+    <string name="stats_h4">How long the server keeps it</string>
+    <string name="stats_b4">Event records 45 days, daily aggregates 400 days, and a device row is deleted once it has not been seen for a year. All of it is automatic server-side cleanup.</string>
+    <string name="stats_h5">What turning it off does</string>
+    <string name="stats_b5">Once off, this code path has no way to send anything at all — reporting stops immediately, and what was already sent expires on the schedule above. Rollout targeting uses a different seed that never leaves the device, so switching this off does not hide notices or update prompts.</string>
+    <string name="stats_h6">When this page does not exist</string>
+    <string name="stats_b6">The hub address is baked in at build time. A self-built or forked APK that leaves it empty shows neither this link nor the switch — rather than showing a switch that controls nothing.</string>
+
     <!-- 首页帮助弹层 -->
     <string name="help_title">Usage tips</string>
     <string name="help_body">· After saving, toggle airplane mode once so the carrier config is re-read\n· Overrides are re-applied automatically once after a reboot\n· Dual-SIM devices can be set per card, independently\n· Some custom ROMs block the interface at framework level; failing there is normal</string>
@@ -158,8 +214,6 @@
     <string name="about_feedback_value">QQ group 551772286</string>
     <string name="about_feedback_copied">Group number copied: %1$s. Paste it into QQ\'s search box to join.</string>
     <string name="about_license">License</string>
-    <string name="about_privacy">Permissions &amp; data</string>
-    <string name="about_privacy_body">All SIM changes run under Shizuku authorization and the app asks for no runtime permissions; every SIM record stays on this device. The only request made by default is the update check, and only when you tap it. If this build was compiled with a hub address, it also fetches notices once a day and posts one anonymous usage record (device model and versions, never any SIM content) — you can turn that off with the &quot;Share anonymous usage stats&quot; switch.</string>
     <string name="about_project">Project page</string>
 
     <!-- 结果与报错 -->

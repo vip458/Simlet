@@ -142,6 +142,62 @@
     <string name="update_channel_qr">公众号二维码</string>
     <string name="update_copied">已复制</string>
 
+    <!-- 居中弹窗的三个按钮：全站唯一容器只用这三个词 -->
+    <string name="dialog_close">关闭</string>
+    <string name="dialog_later">稍后再说</string>
+    <string name="dialog_got_it">知道了</string>
+    <string name="update_go_download">去下载</string>
+    <string name="update_dialog_empty">这一版没有写更新说明，改动清单见发布页。</string>
+    <string name="update_dialog_meta">当前 v%1$s · 安装包以 GitHub 发布页为准，应用内不会自动下载或安装</string>
+
+    <!-- 关于页底部三条链，各自进一个独立页面；正文按小标题分段 -->
+    <string name="privacy_title">隐私政策</string>
+    <string name="terms_title">用户协议</string>
+    <string name="stats_title">使用统计</string>
+
+    <string name="privacy_h1">需要哪些权限</string>
+    <string name="privacy_b1">不会弹任何授权框：本应用不申请运行时权限，也不读取通讯录、位置、相机、麦克风、存储。修改 SIM 信息全部经 Shizuku 完成，授权由你在 Shizuku 应用里给出；没有 Shizuku 时本应用只能读取，不能修改。</string>
+    <string name="privacy_h2">清单里声明的权限各干什么</string>
+    <string name="privacy_b2">· INTERNET：检查更新与下载升级包\n· RECEIVE_BOOT_COMPLETED：手机重启后把你已保存的覆盖方案补写回去。这是保存方案自带的行为，没有单独开关；点「还原」清掉之后开机就没什么可补的\n· REQUEST_INSTALL_PACKAGES：下载完成后拉起系统安装器，装不装由你在系统界面里确认\n· MODIFY_PHONE_STATE 与 READ_PHONE_STATE：系统级权限，普通应用拿不到。声明它们只是为了让 Shizuku 的 shell 委托把它们临时借给本进程，否则委托内的自检会按「未持有」拒绝写入</string>
+    <string name="privacy_h3">数据存在哪里</string>
+    <string name="privacy_b3">你选择的卡槽、目标国家码、自定义运营商名称，只保存在本机应用私有目录里。不上传、不做云端备份，卸载或清除应用数据即消失。</string>
+    <string name="privacy_h4">什么时候会联网</string>
+    <string name="privacy_b4">只有三件事：你主动点「检查更新」时的那一次请求，去向是 GitHub；后台公告每天最多拉取一次；匿名使用统计每天最多上报一条，可以在「使用统计」页关掉。除此之外没有任何网络请求，不埋点、不投广告、不上传日志。</string>
+    <string name="privacy_h5">不收集哪些信息</string>
+    <string name="privacy_b5">手机号、IMSI、ICCID、设备序列号、SIM 卡的运营商、你填写的国家码与自定义名称、你的保存与还原动作、位置信息、账号、广告标识符。这些字段在本应用代码里都不存在。</string>
+    <string name="privacy_h6">一句实话</string>
+    <string name="privacy_b6">早期版本写过「除检查更新外不发任何网络请求」。接上公告与匿名统计之后这句话不再成立，所以改成上面那份清单，不再用一句概括。</string>
+
+    <string name="terms_h1">这个应用是什么</string>
+    <string name="terms_b1">Simlet 用来修改 SIM 卡在系统里显示的国家码与运营商名称，需要配合 Shizuku 使用。改的是系统读取到的运营商配置，不写入 SIM 卡本身，随时可以还原。</string>
+    <string name="terms_h2">这个应用不是什么</string>
+    <string name="terms_b2">不解锁运营商限制，不绕过网络锁，不修改 IMEI，不提供任何解锁、破解或绕过计费的能力。</string>
+    <string name="terms_h3">用途限制</string>
+    <string name="terms_b3">仅供学习与研究使用，并且只可以用在你有权修改的设备与 SIM 卡上。任何违法用途——包括伪造他人设备信息、绕过运营商计费、冒充运营商身份——本应用不提供支持，作者也不为使用者的行为负责。</string>
+    <string name="terms_h4">风险与后果</string>
+    <string name="terms_b4">修改运营商显示信息可能影响通话、短信或数据服务的正常使用；部分机型或运营商会拒绝还原，出现这种情况需要你自己联系运营商处理。使用本应用产生的后果自负，作者不承担责任。</string>
+    <string name="terms_h5">免责</string>
+    <string name="terms_b5">本应用按「现状」提供，不含任何明示或暗示的担保，包括对可商用、特定用途适用性与不侵权的保证（Apache-2.0 第 8 条）。</string>
+    <string name="terms_h6">许可与来源</string>
+    <string name="terms_b6">应用代码以 Apache-2.0 开源，你可以自由使用、修改和再分发，保留版权与许可声明即可；图标来自 Reicon（MIT）。可选的自建后台不开源，但它对客户端做的每一件事都由公开的接口文档约束。</string>
+    <string name="terms_h7">更新与下载</string>
+    <string name="terms_b7">更新以 GitHub Releases 为准。本应用不会在后台自动下载或安装任何东西：所有下载入口点了都是交给系统浏览器，安装包由你自己保存并确认安装。</string>
+    <string name="terms_h8">协议变更</string>
+    <string name="terms_b8">协议随版本更新，应用内展示的就是当前版本生效的那一份。</string>
+
+    <string name="stats_h1">上报什么</string>
+    <string name="stats_b1">一个只在本机生成的匿名 ID（16 字节随机数，卸载或清除应用数据就会换一个新的）、设备品牌与机型、Android 系统版本、应用版本、界面语言。每天最多一条，只在应用启动时发送。</string>
+    <string name="stats_h2">不上报什么</string>
+    <string name="stats_b2">SIM 相关的一个都不发：卡号、运营商、你设置的国家码与自定义名称、你保存或还原了什么。也不发位置、账号和任何硬件序列号。那个匿名 ID 是一次性随机数，不是从硬件标识算出来的，和上面任何字段之间都没有可反推的关系。</string>
+    <string name="stats_h3">收来做什么</string>
+    <string name="stats_b3">只回答两个问题：还有多少人在用；要不要继续适配某个机型（例如某个型号读不到卡）。不看单台设备的历史。</string>
+    <string name="stats_h4">服务器保留多久</string>
+    <string name="stats_b4">事件记录 45 天，按天汇总 400 天，设备行一年不再出现就删除。全部由服务端自动清理，不需要人工操作。</string>
+    <string name="stats_h5">关掉会怎样</string>
+    <string name="stats_b5">关掉之后这条链路在代码上就没有出口，立即停止上报；已经上报的那几条按上面的保留期自然消失。灰度投放用的是另一个只在本机的种子，不依赖这个开关，所以关掉不会影响公告和更新提示。</string>
+    <string name="stats_h6">没有这一页的时候</string>
+    <string name="stats_b6">自建后台地址是构建时填进去的。自己构建或 fork 时留空，「使用统计」这个入口和开关都不会出现——不是出现了但功能是关的。</string>
+
     <!-- 首页帮助弹层：使用提示从关于页搬来，就地看，不用跳走 -->
     <string name="help_title">使用提示</string>
     <string name="help_body">· 保存后建议开关一次飞行模式，让运营商重新读取配置\n· 手机重启后会自动补写一次，无需重复设置\n· 双卡可对每张卡分别设置，互不影响\n· 部分定制系统禁用了对应接口，个别机型无法生效属正常现象</string>
@@ -160,8 +216,6 @@
     <string name="about_feedback_value">QQ 群 551772286</string>
     <string name="about_feedback_copied">群号已复制：%1$s，在 QQ 里搜索加群</string>
     <string name="about_license">开源许可</string>
-    <string name="about_privacy">权限与数据</string>
-    <string name="about_privacy_body">所有 SIM 操作经 Shizuku 授权完成，不申请运行时权限；SIM 相关数据只存本机。网络请求只有你主动点「检查更新」时那一次；构建时配了自建后台地址，才会每天拉一次公告、并上报一条匿名使用统计（机型与版本，不含任何 SIM 内容），上报可以在「共享匿名使用统计」那一行关掉。</string>
     <string name="about_project">项目主页</string>
 
     <!-- 结果与报错：标题本地化，系统原文留在详情行 -->

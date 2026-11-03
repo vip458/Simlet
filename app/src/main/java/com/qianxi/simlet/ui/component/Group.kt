@@ -2,7 +2,6 @@ package com.qianxi.simlet.ui.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -10,31 +9,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.qianxi.simlet.R
 import com.qianxi.simlet.ui.theme.SimletCardShape
 import com.qianxi.simlet.ui.theme.SimletInnerShape
 import dev.reicon.ChevronExpandY
@@ -193,108 +183,5 @@ fun TextBadge(text: String, modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.labelSmall,
             modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
         )
-    }
-}
-
-/**
- * 纯文字弹层：使用提示、权限与数据说明这类「读一段话」的内容用它。
- *
- * 参考稿把这类长文本从主页面里挪了出去，页面上只留一行入口。
- * [linkText] + [onLink] 是给公告那种「正文下面还挂一个动作」的情况留的位。
- * 这里收的是文字和回调而不是 `@Composable` 插槽：Compose 编译器没法通过
- * `if (x == null) null else { ... }` 把插槽推断成 composable 类型，为一个可选行去折腾类型标注不值。
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun InfoSheet(
-    visible: Boolean,
-    title: String,
-    body: String,
-    onDismiss: () -> Unit,
-    linkText: String? = null,
-    onLink: (() -> Unit)? = null
-) {
-    if (!visible) return
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ) {
-        // 正文长度不由这里决定：公告最多 240 字、隐私说明也走这个弹层，横屏时弹层高度有限，
-        // 不给它滚动的话最后一句会被裁掉，而裁掉的恰好是「怎么关掉」那半句。
-        Column(
-            Modifier
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp)
-        ) {
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(12.dp))
-            Text(
-                body,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            if (linkText != null && onLink != null) {
-                Spacer(Modifier.height(8.dp))
-                TextButton(onClick = onLink) { Text(linkText) }
-            }
-            Spacer(Modifier.height(24.dp))
-        }
-    }
-}
-
-/**
- * 选项弹层：明暗档位、语言这类少量互斥选项用它，
- * 取代原先摆在行右侧的三个内联 chip——参考稿的对应位置只有一个尾值加上下箭头。
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun OptionSheet(
-    visible: Boolean,
-    title: String,
-    options: List<String>,
-    selectedIndex: Int,
-    onDismiss: () -> Unit,
-    onSelect: (Int) -> Unit
-) {
-    if (!visible) return
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ) {
-        Column(Modifier.padding(horizontal = 20.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(8.dp))
-            options.forEachIndexed { index, option ->
-                val active = index == selectedIndex
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            onSelect(index)
-                            onDismiss()
-                        }
-                        .padding(vertical = 15.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        option,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = if (active) MaterialTheme.colorScheme.onSurface
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (active) {
-                        Text(
-                            stringResource(R.string.badge_current),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                    }
-                }
-                if (index != options.lastIndex) RowDivider(start = 0.dp)
-            }
-            Spacer(Modifier.height(16.dp))
-        }
     }
 }

@@ -219,6 +219,58 @@ fun WechatSheet(visible: Boolean, onCopyName: () -> Unit, onDismiss: () -> Unit)
     }
 }
 
+/**
+ * 发现新版本的居中弹窗。
+ *
+ * 只在「刚查出有新版本」那一次出现，负责第一次告知；设置页那一组动作行原样留着——
+ * 「从哪个渠道下、要不要现在装」是会被反复回来看的东西，收进弹窗就找不着了。
+ *
+ * 镜像那颗按钮**按后台有没有配出现**，不是两个弹窗：没配网盘就少一颗，窗体本身一模一样。
+ * 没有安装包时主按钮换成「查看发布页」，因为「去下载」点了什么也不会发生。
+ */
+@Composable
+fun UpdateDialog(
+    visible: Boolean,
+    release: ReleaseInfo?,
+    currentVersion: String,
+    onDismiss: () -> Unit,
+    onDownload: (ReleaseInfo) -> Unit,
+    onOpenPage: () -> Unit,
+    onOpenMirror: (Mirror) -> Unit
+) {
+    val target = release
+    val mirror = target?.mirror
+    SimletDialog(
+        // 关窗时 release 往往还在状态里，所以 visible 由调用方说了算；
+        // 这里再叠一个 target != null 只是不让它弹出一个空版本号的窗。
+        visible = visible && target != null,
+        title = stringResource(R.string.update_available, target?.versionName.orEmpty()),
+        onDismiss = onDismiss,
+        confirmText = if (target?.apkUrl != null) stringResource(R.string.update_go_download)
+        else stringResource(R.string.update_open_page),
+        onConfirm = {
+            val found = target ?: return@SimletDialog
+            if (found.apkUrl != null) onDownload(found) else onOpenPage()
+        },
+        secondaryText = mirror?.let { stringResource(R.string.update_mirror, it.label) },
+        onSecondary = mirror?.let { { onOpenMirror(it) } },
+        dismissText = stringResource(R.string.dialog_later)
+    ) {
+        Text(
+            target?.notes?.takeIf { it.isNotBlank() }
+                ?: stringResource(R.string.update_dialog_empty),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            stringResource(R.string.update_dialog_meta, currentVersion),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 /** 状态即文案：每种结果一行状态 + 可选详情，不拼字符串。还没点过就不占行尾。 */
 @Composable
 private fun describe(state: UpdateState): Pair<String?, String?> = when (state) {

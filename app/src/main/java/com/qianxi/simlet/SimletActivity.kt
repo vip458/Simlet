@@ -35,9 +35,12 @@ import com.qianxi.simlet.ui.UiPrefs
 import com.qianxi.simlet.ui.screen.AboutScreen
 import com.qianxi.simlet.ui.screen.HomeScreen
 import com.qianxi.simlet.ui.screen.LicenseScreen
+import com.qianxi.simlet.ui.screen.PrivacyScreen
 import com.qianxi.simlet.ui.screen.SettingsScreen
 import com.qianxi.simlet.ui.screen.SetupScreen
 import com.qianxi.simlet.ui.screen.SetupStage
+import com.qianxi.simlet.ui.screen.StatsScreen
+import com.qianxi.simlet.ui.screen.TermsScreen
 import com.qianxi.simlet.ui.screen.resolveSetupStage
 import com.qianxi.simlet.ui.theme.SimletTheme
 import kotlinx.coroutines.CoroutineScope
@@ -55,7 +58,7 @@ import rikka.shizuku.Shizuku
  * 进它就从右滑入、退它就从左滑回；根层两页同层，没有前后关系，只淡入淡出。
  */
 private enum class Page(val level: Int) {
-    Setup(0), Home(0), Settings(1), About(2), Licenses(3)
+    Setup(0), Home(0), Settings(1), About(2), Licenses(3), Privacy(3), Terms(3), Stats(3)
 }
 
 /** 公告这条链路和 remote/HubClient 用同一个日志标签，抓 logcat 时一条命令能看全。 */
@@ -157,9 +160,23 @@ class SimletActivity : ComponentActivity() {
                 ) { page ->
                     when (page) {
                         Page.Licenses -> LicenseScreen(onBack = ::pop)
+                        Page.Privacy -> PrivacyScreen(onBack = ::pop)
+                        Page.Terms -> TermsScreen(onBack = ::pop)
+                        Page.Stats -> {
+                            val store = RemoteStore.of(this@SimletActivity)
+                            StatsScreen(
+                                onBack = ::pop,
+                                statsOn = store.statsOn,
+                                onToggle = store::setStatsOn
+                            )
+                        }
+
                         Page.About -> AboutScreen(
                             onBack = ::pop,
-                            onOpenLicenses = { push(Page.Licenses) }
+                            onOpenLicenses = { push(Page.Licenses) },
+                            onOpenPrivacy = { push(Page.Privacy) },
+                            onOpenTerms = { push(Page.Terms) },
+                            onOpenStats = { push(Page.Stats) }
                         )
 
                         Page.Settings -> SettingsScreen(

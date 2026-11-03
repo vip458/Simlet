@@ -99,6 +99,35 @@ class RemoteStore private constructor(context: Context) {
         store.edit().putBoolean(KEY_STATS, on).apply()
     }
 
+    /** 这条公告用户自己点看过没有。后台没发、或这条不是当前这个后台给的时候，没有可提醒的东西。 */
+    fun noticeUnread(notice: Notice?): Boolean {
+        val id = notice?.id ?: return false
+        return owned() && id != store.getInt(KEY_SEEN, 0)
+    }
+
+    /**
+     * 点开公告入口：未读点从此消失。
+     *
+     * 自动弹出不走这里——那是一次提示，不等于人读过了。所以弹完点还在，
+     * 直到他自己点开口诀那句「用户查看公告后未读提醒消失」才成立。
+     */
+    fun markNoticeSeen(id: Int) {
+        store.edit().putInt(KEY_SEEN, id).apply()
+    }
+
+    /**
+     * 取走这条该不该自动弹出：同一条公告只给一次机会。
+     *
+     * 立刻落库而不是等弹窗关闭再记：杀进程重来的第二次启动如果还能弹，
+     * 「只弹一次」就变成「每次冷启动都弹」，那是打扰。
+     */
+    fun takeNoticePopup(notice: Notice?): Notice? {
+        val pending = notice ?: return null
+        if (pending.id <= 0 || store.getInt(KEY_POPPED, 0) == pending.id) return null
+        store.edit().putInt(KEY_POPPED, pending.id).apply()
+        return pending
+    }
+
     /** 上次拿到的 ETag；只对当前这个后台有效，换了地址就当没拿到过。 */
     val etag: String? get() = store.getString(KEY_ETAG, null)?.takeIf { it.isNotBlank() && owned() }
 
@@ -208,6 +237,8 @@ class RemoteStore private constructor(context: Context) {
         private const val KEY_DEV = "hub_dev"
         private const val KEY_SEED = "hub_seed"
         private const val KEY_REL = "hub_release"
+        private const val KEY_SEEN = "notice_seen_id"
+        private const val KEY_POPPED = "notice_popped_id"
         private const val KEY_ID = "notice_id"
         private const val KEY_TI = "notice_title"
         private const val KEY_BD = "notice_body"

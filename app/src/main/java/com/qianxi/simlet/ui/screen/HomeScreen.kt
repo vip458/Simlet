@@ -42,10 +42,10 @@ import com.qianxi.simlet.remote.HubRules
 import com.qianxi.simlet.remote.RemoteStore
 import com.qianxi.simlet.ui.SimletViewModel
 import com.qianxi.simlet.ui.component.CriticalUpdateRow
-import com.qianxi.simlet.ui.component.HelpSheet
+import com.qianxi.simlet.ui.component.HelpDialog
 import com.qianxi.simlet.ui.component.IsoPicker
 import com.qianxi.simlet.ui.component.NoticeSection
-import com.qianxi.simlet.ui.component.NoticeSheet
+import com.qianxi.simlet.ui.component.NoticeDialog
 import com.qianxi.simlet.ui.component.OperatorSheet
 import com.qianxi.simlet.ui.component.PickerRow
 import com.qianxi.simlet.ui.component.RegionSheet
@@ -77,6 +77,13 @@ fun HomeScreen(
         val feedback = state.notice ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(feedback.render(context))
         viewModel.consumeNotice()
+    }
+
+    // 新公告自动弹一次：取走的同时就把这条记成「已弹过」，所以杀进程重来也不会再弹。
+    // 未读点不走这里——弹过一次不等于人读过，要点开口诀那句「查看后才消失」才成立。
+    val announcement = remote.notice
+    LaunchedEffect(announcement?.id) {
+        if (remote.takeNoticePopup(announcement) != null) noticeSheetOpen = true
     }
 
     AppScaffold(
@@ -145,6 +152,20 @@ fun HomeScreen(
                     CriticalUpdateRow(versionName = pending.name, onClick = onOpenSettings)
                 }
 
+            // 公告摆在第一组：藏在最后一组的公告等于没有公告。
+            // 保存与还原在底部栏里、不随内容滚动，所以它顶不掉主操作。
+            // 没配后台地址或后台没发公告时这一组不出现。
+            remote.notice?.let { notice ->
+                NoticeSection(
+                    notice = notice,
+                    unread = remote.noticeUnread(notice),
+                    onOpen = {
+                        noticeSheetOpen = true
+                        remote.markNoticeSeen(notice.id)
+                    }
+                )
+            }
+
             SettingGroup(title = stringResource(R.string.section_sim_cards)) {
                 when {
                     state.loading -> Column(Modifier.padding(20.dp)) { SkeletonBlock(lines = 2) }
@@ -211,11 +232,6 @@ fun HomeScreen(
                 )
             }
 
-            // 公告放最后一组：它不该把「保存」按钮顶出屏幕，也不该排在用户真正要操作的东西前面。
-            // 没配后台地址或后台没发公告时这一组不出现。
-            remote.notice?.let { announcement ->
-                NoticeSection(notice = announcement, onOpen = { noticeSheetOpen = true })
-            }
         }
     }
 
@@ -233,9 +249,9 @@ fun HomeScreen(
         onPick = viewModel::pickCarrier
     )
 
-    HelpSheet(visible = helpSheetOpen, onDismiss = { helpSheetOpen = false })
+    HelpDialog(visible = helpSheetOpen, onDismiss = { helpSheetOpen = false })
 
-    NoticeSheet(
+    NoticeDialog(
         visible = noticeSheetOpen,
         notice = remote.notice,
         onDismiss = { noticeSheetOpen = false }

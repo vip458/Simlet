@@ -20,16 +20,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import com.qianxi.simlet.BuildConfig
 import com.qianxi.simlet.R
-import com.qianxi.simlet.remote.HubRules
-import com.qianxi.simlet.remote.RemoteStore
 import com.qianxi.simlet.ui.UiPrefs
-import com.qianxi.simlet.ui.component.InfoSheet
-import com.qianxi.simlet.ui.component.OptionSheet
+import com.qianxi.simlet.ui.component.OptionDialog
 import com.qianxi.simlet.ui.component.RowDivider
 import com.qianxi.simlet.ui.component.SettingGroup
 import com.qianxi.simlet.ui.component.SettingRow
 import com.qianxi.simlet.ui.component.RowTail
-import com.qianxi.simlet.ui.component.StatsRow
+import com.qianxi.simlet.ui.component.UpdateDialog
 import com.qianxi.simlet.ui.component.UpdateSection
 import com.qianxi.simlet.ui.component.WechatRow
 import com.qianxi.simlet.ui.component.WechatSheet
@@ -38,12 +35,10 @@ import com.qianxi.simlet.ui.theme.NightMode
 import com.qianxi.simlet.update.ApkInstaller
 import com.qianxi.simlet.update.UpdateState
 import com.qianxi.simlet.update.UpdateViewModel
-import dev.reicon.Globe
 import dev.reicon.InfoCircle
 import dev.reicon.Language
 import dev.reicon.MessageCircle
 import dev.reicon.Moon
-import dev.reicon.Shield
 
 private const val QQ_GROUP = "551772286"
 
@@ -65,7 +60,7 @@ private const val QQ_JOIN_URL =
         "&data=Xmm0zFg5KfMXUs_Vz37BOSjXxNShffk2e7erhOtHAQPQy0NaCJ8P1wTDQaYjPf-0yQRMgq-sWOWpkVHdEtpTPQ" +
         "&svctype=4&tempid=h5_group_info"
 
-/** 设置页：外观、语言、更新、渠道，以及通往关于页与权限说明的入口。 */
+/** 设置页：外观、语言、更新、渠道，以及通往关于页与反馈群的入口。 */
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
@@ -74,7 +69,6 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val prefs = UiPrefs.of(context)
-    val remote = RemoteStore.of(context)
     val updateVm: UpdateViewModel = viewModel()
     val updateState by updateVm.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -88,7 +82,7 @@ fun SettingsScreen(
     var nightSheetOpen by remember { mutableStateOf(false) }
     var languageSheetOpen by remember { mutableStateOf(false) }
     var wechatSheetOpen by remember { mutableStateOf(false) }
-    var privacySheetOpen by remember { mutableStateOf(false) }
+    var updateDialogOpen by remember { mutableStateOf(false) }
 
     val nightLabels = listOf(
         stringResource(R.string.night_follow),
@@ -113,6 +107,12 @@ fun SettingsScreen(
         if (ApkInstaller.canInstall(context)) return@LaunchedEffect
         scope.launch { snackbarHostState.showSnackbar(needInstallPermission) }
         context.startActivity(ApkInstaller.permissionIntent(context))
+    }
+
+    // 每次「查出有新版本」弹一次窗。键是状态对象本身，所以关掉之后不会自己再冒出来，
+    // 而下一次检查真查到了新版本（新的 Available 实例）才会再弹。
+    LaunchedEffect(updateState) {
+        updateDialogOpen = updateState is UpdateState.Available
     }
 
     AppScaffold(
@@ -191,24 +191,13 @@ fun SettingsScreen(
                         }
                     }
                 )
-                RowDivider()
-                // 这一行只在构建时配了后台地址才存在：开关要真能关掉一条网络链路才有意义，
-                // 而它关掉的只有统计——公告和更新检查不受这个开关影响，那是功能不是采集。
-                if (HubRules.enabled(BuildConfig.HUB_BASE_URL)) {
-                    StatsRow(on = remote.statsOn, onToggle = remote::setStatsOn)
-                    RowDivider()
-                }
-                SettingRow(
-                    title = stringResource(R.string.about_privacy),
-                    icon = Shield.Outline,
-                    tail = RowTail.Next,
-                    onClick = { privacySheetOpen = true }
-                )
+                // 权限与数据、共享匿名使用统计都搬到关于页去了：
+                // 一个是读一遍的参考材料，一个带开关，两处都该在「服务与条款」那一层。
             }
         }
     }
 
-    OptionSheet(
+    OptionDialog(
         visible = nightSheetOpen,
         title = stringResource(R.string.settings_night_mode),
         options = nightLabels,
@@ -217,7 +206,7 @@ fun SettingsScreen(
         onSelect = { prefs.setNightMode(NightMode.entries[it]) }
     )
 
-    OptionSheet(
+    OptionDialog(
         visible = languageSheetOpen,
         title = stringResource(R.string.settings_language),
         options = languageLabels,
@@ -239,10 +228,20 @@ fun SettingsScreen(
         }
     )
 
-    InfoSheet(
-        visible = privacySheetOpen,
-        title = stringResource(R.string.about_privacy),
-        body = stringResource(R.string.about_privacy_body),
-        onDismiss = { privacySheetOpen = false }
+    UpdateDialog(
+        visible = updateDialogOpen,
+        release = (updateState as? UpdateState.Available)?.release,
+        currentVersion = BuildConfig.VERSION_NAME,
+        onDismiss = { updateDialogOpen = false },
+        onDownload = updateVm::download,
+        onOpenPage = {
+            val url = (updateState as? UpdateState.Available)?.release?.pageUrl
+            if (!url.isNullOrBlank()) context.openWebPage(url)
+        },
+        onOpenMirror = { mirror ->
+            // 和设置页那一行同一个动作：复制提取码 + 交给浏览器，一次点击走完。
+            if (mirror.code.isNotBlank()) clipboard.setText(AnnotatedString(mirror.code))
+            context.openWebPage(mirror.url)
+        }
     )
 }

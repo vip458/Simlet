@@ -388,24 +388,14 @@ private fun CurrentBadge() {
     )
 }
 
-/** 使用提示：从关于页搬进首页顶栏的帮助按钮，就地看，不用为了几条提示跳去另一个页面。 */
-@OptIn(ExperimentalMaterial3Api::class)
+/** 使用提示：摆在首页顶栏的帮助按钮里，就地看，不用跳走。走统一弹窗容器。 */
 @Composable
-fun HelpSheet(visible: Boolean, onDismiss: () -> Unit) {
-    if (!visible) return
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ) {
-        Column(Modifier.padding(horizontal = 20.dp)) {
-            Text(stringResource(R.string.help_title), style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(12.dp))
-            Text(
-                stringResource(R.string.help_body),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(20.dp))
-        }
-    }
+fun HelpDialog(visible: Boolean, onDismiss: () -> Unit) {
+    InfoDialog(
+        visible = visible,
+        title = stringResource(R.string.help_title),
+        body = stringResource(R.string.help_body),
+        onDismiss = onDismiss,
+        dismissText = stringResource(R.string.dialog_got_it)
+    )
 }
