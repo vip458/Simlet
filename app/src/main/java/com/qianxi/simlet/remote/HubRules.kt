@@ -39,6 +39,26 @@ object HubRules {
     fun enabled(base: String): Boolean = endpoint(base) != null
 
     /**
+     * 这份缓存属于哪个后台。
+     *
+     * ETag 是源站给自己的资源标识，不是全局唯一的字符串：「本机指向过 A，现在指向 B」和
+     * 「B 恰好算出同一个 ETag」这两件事凑在一起，客户端就会拿着 A 的凭据去问 B，
+     * 收到一个 304，然后把 A 的旧公告当成 B 的最新内容一直显示下去。
+     * 所以缓存必须带上它是从哪个地址来的，换了地址就等于换了源站。
+     */
+    fun origin(base: String): String? = endpoint(base)?.toString()
+
+    /**
+     * 把端点拼在后台前缀后面。
+     *
+     * 不能写成 `URL(base, "/api/v1/x")`：以 `/` 打头的相对引用按 RFC 会把 base 自带的目录整段丢掉，
+     * `https://host/simlet-hub` 变成 `https://host/api/v1/x`。后台装在子目录里（虚拟主机一般只能这样）
+     * 就必然 404，而 404 在这条链路上是静默的——真机装到带前缀的地址上才发现。
+     */
+    fun url(base: String, path: String): URL? =
+        origin(base)?.let { URL(it.trimEnd('/') + path) }
+
+    /**
      * 语言口径：只分中英，其它一律按中文取。
      *
      * 和后台 `Http::lang()` 是同一套规则——两边不一致的话，德语用户会在服务端落到 zh、

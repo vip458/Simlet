@@ -2,6 +2,7 @@ package com.qianxi.simlet.remote
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -48,6 +49,43 @@ class HubRulesTest {
     fun `末尾斜杠不影响拼接`() {
         assertEquals("hub.example.com", HubRules.endpoint("https://hub.example.com/simlet-api/")?.host)
         assertEquals("/simlet-api", HubRules.endpoint("https://hub.example.com/simlet-api/")?.path)
+    }
+
+    @Test
+    fun `缓存归属认到目录一级，换后台地址就不是同一个源站`() {
+        // ETag 是源站给自己的标识，跨源复用等于拿 A 的凭据去问 B：B 只要算出同样的串就会回 304，
+        // 客户端于是把 A 的旧公告一直当成 B 的最新内容。所以归属键必须精确到目录。
+        assertEquals("https://hub.example.com/simlet-api", HubRules.origin("https://hub.example.com/simlet-api/"))
+        assertNotEquals(
+            HubRules.origin("https://hub.example.com/simlet-api"),
+            HubRules.origin("https://hub.example.com/other-api")
+        )
+        assertNotEquals(
+            HubRules.origin("https://a.example/hub"),
+            HubRules.origin("https://b.example/hub")
+        )
+        // 公网 http 连链路都是关闭的，归属键也就没有值，不能退化成空串去匹配上一次的缓存。
+        assertNull(HubRules.origin("http://hub.example.com"))
+        assertNull(HubRules.origin(""))
+    }
+
+    @Test
+    fun `后台装在子目录里时端点要接在目录后面`() {
+        // URL(base, "/api/v1/x") 会把 base 的目录丢掉，这条是虚拟主机唯一的可用形态。
+        assertEquals(
+            "https://h.example/simlet-hub/api/v1/bootstrap.php",
+            HubRules.url("https://h.example/simlet-hub", "/api/v1/bootstrap.php")?.toString()
+        )
+        assertEquals(
+            "https://h.example/simlet-api/api/v1/ping.php",
+            HubRules.url("https://h.example/simlet-api/", "/api/v1/ping.php")?.toString()
+        )
+        assertEquals(
+            "https://h.example/api/v1/bootstrap.php",
+            HubRules.url("https://h.example", "/api/v1/bootstrap.php")?.toString()
+        )
+        assertNull(HubRules.url("", "/api/v1/bootstrap.php"))
+        assertNull(HubRules.url("http://h.example/hub", "/api/v1/bootstrap.php"))
     }
 
     @Test

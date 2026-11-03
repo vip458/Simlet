@@ -5,7 +5,6 @@ import com.qianxi.simlet.BuildConfig
 import org.json.JSONObject
 import java.io.InputStream
 import java.net.HttpURLConnection
-import java.net.URL
 import java.net.URLEncoder
 import java.util.zip.GZIPInputStream
 
@@ -90,9 +89,10 @@ object HubClient {
     private const val MAX_BYTES = 16 * 1024
 
     fun fetch(currentEtag: String?, lang: String, versionName: String, versionCode: Int): HubOutcome {
-        val base = HubRules.endpoint(BuildConfig.HUB_BASE_URL) ?: return HubOutcome.Unreachable
+        val target = HubRules.url(BuildConfig.HUB_BASE_URL, PATH + query(lang, versionName, versionCode))
+            ?: return HubOutcome.Unreachable
         val connection = runCatching {
-            (URL(base, PATH + query(lang, versionName, versionCode)).openConnection() as HttpURLConnection).apply {
+            (target.openConnection() as HttpURLConnection).apply {
                 connectTimeout = TIMEOUT_MS
                 readTimeout = TIMEOUT_MS
                 instanceFollowRedirects = true
@@ -150,10 +150,10 @@ object HubClient {
         lang: String,
         event: String
     ): Boolean {
-        val base = HubRules.endpoint(BuildConfig.HUB_BASE_URL) ?: return false
+        val target = HubRules.url(BuildConfig.HUB_BASE_URL, PING_PATH) ?: return false
         val body = form(deviceId, brand, model, sdk, versionName, versionCode, lang, event)
         val connection = runCatching {
-            (URL(base, PING_PATH).openConnection() as HttpURLConnection).apply {
+            (target.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 doOutput = true
                 connectTimeout = TIMEOUT_MS

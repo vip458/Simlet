@@ -14,14 +14,24 @@ import org.json.JSONObject
  *
  * 这里存的是服务端**下发**的东西，加上两个只在本机生成的值：匿名设备 ID 和灰度分桶种子。
  * 清除应用数据或卸载就一起没了——没有第二份身份可以把它捞回来，这也是「换台设备就是另一个人」的口径。
+ *
+ * 每一份下发内容都记着它是从哪个后台来的：ETag 只对同一个后台作数。真机踩过——本机先指向联调用的
+ * 内置服务器、再换成正式域名，两边代次恰好一样，客户端拿旧凭据去问新后台收到一个 304，
+ * 于是把测试公告当正式公告显示了下去。换了地址就该重新拿一份，而不是复验旧的那份。
  */
 class RemoteStore private constructor(context: Context) {
 
     private val store = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    /** 这份缓存现在归属的那个后台地址。改构建参数就等于换了源站。 */
+    private val hubOrigin = HubRules.origin(BuildConfig.HUB_BASE_URL)
+
     private val noticeState = mutableStateOf(readNotice())
     private val releaseState = mutableStateOf(readRelease())
     private val statsState = mutableStateOf(store.getBoolean(KEY_STATS, HubRules.DEFAULT_STATS_ON))
+
+    /** 缓存里的东西是不是当前这个后台给的。 */
+    private fun owned() = hubOrigin != null && store.getString(KEY_ORIGIN, null) == hubOrigin
 
     /**
      * 当前该显示的公告。
@@ -33,7 +43,7 @@ class RemoteStore private constructor(context: Context) {
      */
     val notice: Notice?
         get() = noticeState.value.takeIf {
-            HubRules.enabled(BuildConfig.HUB_BASE_URL) &&
+            HubRules.enabled(BuildConfig.HUB_BASE_URL) && owned() &&
                 HubRules.noticeLive(store.getLong(KEY_CONFIRMED, 0L), System.currentTimeMillis())
         }
 
@@ -50,7 +60,7 @@ class RemoteStore private constructor(context: Context) {
      */
     val release: HubRelease?
         get() = releaseState.value.takeIf {
-            HubRules.enabled(BuildConfig.HUB_BASE_URL) &&
+            HubRules.enabled(BuildConfig.HUB_BASE_URL) && owned() &&
                 HubRules.noticeLive(store.getLong(KEY_CONFIRMED, 0L), System.currentTimeMillis())
         }
 
@@ -89,8 +99,8 @@ class RemoteStore private constructor(context: Context) {
         store.edit().putBoolean(KEY_STATS, on).apply()
     }
 
-    /** 上次拿到的 ETag；304 复验全靠它。 */
-    val etag: String? get() = store.getString(KEY_ETAG, null)?.takeIf { it.isNotBlank() }
+    /** 上次拿到的 ETag；只对当前这个后台有效，换了地址就当没拿到过。 */
+    val etag: String? get() = store.getString(KEY_ETAG, null)?.takeIf { it.isNotBlank() && owned() }
 
     val lastAttemptMs: Long get() = store.getLong(KEY_ATTEMPT, 0L)
 
@@ -115,6 +125,7 @@ class RemoteStore private constructor(context: Context) {
         store.edit().apply {
             putLong(KEY_CONFIRMED, nowMs)
             putLong(KEY_ATTEMPT, nowMs)
+            putString(KEY_ORIGIN, hubOrigin.orEmpty())
             putInt(KEY_BOOT_H, HubRules.hours(config.policy.bootHours).toInt())
             putInt(KEY_REPORT_H, HubRules.hours(config.policy.reportHours).toInt())
             putBoolean(KEY_POLICY_ON, config.policy.statsOn)
@@ -185,6 +196,7 @@ class RemoteStore private constructor(context: Context) {
 
     companion object {
         private const val PREFS = "simlet_remote"
+        private const val KEY_ORIGIN = "hub_origin"
         private const val KEY_ETAG = "hub_etag"
         private const val KEY_ATTEMPT = "hub_attempt"
         private const val KEY_CONFIRMED = "hub_confirmed"

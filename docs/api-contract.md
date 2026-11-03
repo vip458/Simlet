@@ -71,11 +71,19 @@
 
 ```
 Cache-Control: public, max-age=min(10800, bm*3600), must-revalidate
-ETag: "<md5(gen|lang)>"
+ETag: "<md5(instance|gen|lang)>"
 Vary: Accept-Encoding
 ```
 
 命中 `If-None-Match` 直接回 304、零字节正文。客户端把 304 当成「配置仍然有效」，只把确认时间往前推。
+
+`instance` 是一套部署安装时生成的随机串。ETag 必须带上它：否则两套部署只要代次撞上就会算出同一个 ETag，
+客户端拿着 A 的凭据去问 B 会收到 304，把 A 的旧公告一直当成 B 的最新内容——换域名、清库重装、
+fork 指向自己的后台走的都是这条路径。同理，客户端**只能对同一个后台地址复验**：ETag 和缓存正文都要记下它来自哪个地址，
+换了地址就当没缓存，直接要一份 200。
+
+客户端存的是**目录前缀**，端点是前缀去掉结尾斜杠后直接接上本文的路径（`https://host/simlet-hub` + `/api/v1/bootstrap.php`）。
+不能按 URL 的相对引用规则解析：以 `/` 打头的路径会把前缀整段丢掉，装在子目录里的后台一律 404。
 
 ### 时间闸门
 
