@@ -242,7 +242,7 @@ object HubClient {
         event: String
     ): Boolean {
         val target = HubRules.url(BuildConfig.HUB_BASE_URL, PING_PATH) ?: return false
-        val body = form(deviceId, brand, model, sdk, versionName, versionCode, lang, event)
+        val body = form(deviceId, brand, model, marketName(), sdk, versionName, versionCode, lang, event)
         val connection = runCatching {
             (target.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
@@ -271,10 +271,31 @@ object HubClient {
         }
     }
 
+    /**
+     * 厂商自己给的市场名，读不到就返回空串。
+     *
+     * 国产机的 Build.MODEL 是入网代号：Redmi Note 14 Pro 上报的是 24090RA29C，
+     * 后台光看「品牌 + MODEL」根本认不出是哪台。名字在系统属性里，而两个属性名按厂商分头活着——
+     * Xiaomi/HyperOS 给 ro.product.marketname（实测这台是 "Redmi Note 14 Pro"），
+     * Honor/MagicOS 只给 ro.config.marketing_name（实测那台是 "荣耀X60 Pro"，前一个是空的）。
+     *
+     * SystemProperties 不是公开 API，所以整段包在 runCatching 里：读不到就退回旧口径。
+     * 统计宁可名字糙，也不能因为一个属性读不出来就不发这条上报。
+     */
+    private fun marketName(): String = runCatching {
+        val clazz = Class.forName("android.os.SystemProperties")
+        val getter = clazz.getMethod("get", String::class.java)
+        listOf("ro.product.marketname", "ro.product.odm.marketname", "ro.config.marketing_name")
+            .mapNotNull { getter.invoke(null, it) as? String }
+            .firstOrNull { it.isNotBlank() }
+            .orEmpty()
+    }.getOrDefault("")
+
     private fun form(
         deviceId: String,
         brand: String,
         model: String,
+        market: String,
         sdk: Int,
         versionName: String,
         versionCode: Int,
@@ -286,6 +307,8 @@ object HubClient {
         return "d=" + enc(deviceId) +
             "&m=" + enc(model.take(40)) +
             "&o=" + enc(brand.take(40)) +
+            // 老后台不认这个键会直接忽略，所以带上它是安全的。
+            (if (market.isEmpty()) "" else "&n=" + enc(market.take(40))) +
             "&s=" + sdk +
             "&v=" + enc(versionName.take(20)) +
             "&c=" + versionCode +

@@ -136,9 +136,10 @@ fork 指向自己的后台走的都是这条路径。同理，客户端**只能�
 | 键 | 含义 | 服务端处理 |
 | --- | --- | --- |
 | `d` | 匿名设备 ID，本机首次运行时随机生成的 32 位十六进制 | 必须匹配 `^[0-9a-f]{32}$`，否则丢弃 |
-| `m` | `Build.MODEL` | 截断到 40 字符 |
-| `o` | `Build.MANUFACTURER` | 截断到 40 字符，和 `m` 拼成机型名 |
-| `s` | `Build.VERSION.SDK_INT` | 只接受 21–60 |
+| `m` | `Build.MODEL` | 截断到 40 字符，单独存一列，出问题时按它查具体机型 |
+| `o` | `Build.MANUFACTURER` | 截断到 40 字符，只在没有 `n` 时和 `m` 拼成机型名 |
+| `n` | 厂商给的市场名（`ro.product.marketname`，读不到退 `ro.config.marketing_name`） | 截断到 40 字符。**可选**：老客户端不带，服务端就退回「品牌 + MODEL」；带了就用它当机型名，而且一次空上报不会把已经存下的名字擦掉 |
+| `s` | `Build.VERSION.SDK_INT` | 只接受 21–60；后台按固定表翻成版本名（36 → Android 16），表外的老实写 `API 37` |
 | `v` | versionName | 截断到 20 字符 |
 | `c` | versionCode | 上限 = 已发布的最大 versionCode + 1 |
 | `l` | `zh` / `en` | 其它按 `zh` |
