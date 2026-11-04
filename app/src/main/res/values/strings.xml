@@ -110,6 +110,10 @@
     <string name="notices_empty">还没有公告。</string>
     <string name="notices_offline">已下线</string>
     <string name="notices_failed">没连上后台，上面这些是本机存着的旧内容。</string>
+    <!-- 通知栏那一条：正文放公告标题，标题行说「这是什么」 -->
+    <string name="notice_bar_title">新公告</string>
+    <string name="notice_bar_channel">公告提醒</string>
+    <string name="notice_bar_channel_desc">后台推送新公告时提醒一次</string>
 
     <!-- 统计开关：只有构建时配了自建后台地址才会出现这一行 -->
     <string name="settings_stats">共享匿名使用统计</string>

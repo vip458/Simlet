@@ -32,7 +32,7 @@
 
 ```json
 {"v":1,"g":23,
- "notice":{"id":12,"lv":"alert","ti":"v1.0.3 已发布","bd":"修复无法识别sim卡问题","ur":"https://...","ex":1793772738},
+ "notice":{"id":12,"lv":"alert","ti":"v1.0.3 已发布","bd":"修复无法识别sim卡问题","ur":"https://...","ex":1793772738,"at":1793600000},
  "rel":{"nm":"1.0.3","cd":4,"ro":35,"mi":0,"ma":3,"fc":0,"bk":"v4",
         "pg":"https://github.com/vip458/Simlet/releases/tag/v1.0.3",
         "ap":"https://github.com/vip458/Simlet/releases/download/v1.0.3/app-release.apk",
@@ -49,6 +49,7 @@
 | `notice.lv` | `info`（默认，界面上不带颜色）/ `warn` / `alert` |
 | `notice.bd` / `notice.ur` | 空字符串时整个键不发，省字节 |
 | `notice.ex` | 止期（epoch **秒**），没设就不发这个键。客户端据此在本地到点自删，不需要联网 |
+| `notice.at` | 第一次上线的时刻（epoch **秒**），从没上线过就不发这个键。界面上的日期全靠它，两条通道（`bootstrap` / `notices`）都给，所以列表撞上 304 退回显示 `notice` 那条时日期不会空 |
 | `rel` | 没有在线发布时为 `null` |
 | `pol.bm` | 响应正文允许在中间缓存里待多久（小时）。客户端不读它，它只给 `max-age` 封顶 |
 | `pol.bv` | 多少分钟可以再问一次公告（客户端钳制在 5–720，默认 30）。公告下线的时效由它决定 |

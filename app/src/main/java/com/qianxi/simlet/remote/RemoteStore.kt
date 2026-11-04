@@ -62,8 +62,17 @@ class RemoteStore private constructor(context: Context) {
             HubRules.enabled(BuildConfig.HUB_BASE_URL) && owned()
         }
 
-    /** 列表端点的 ETag。和 bootstrap 的各存各的：两个 URL 的正文不是一回事，串用会收到假的 304。 */
-    val noticesEtag: String? get() = store.getString(KEY_NOTICES_ETAG, null)?.takeIf { it.isNotBlank() && owned() }
+    /**
+     * 列表端点的 ETag。和 bootstrap 的各存各的：两个 URL 的正文不是一回事，串用会收到假的 304。
+     *
+     * 还要加一道「内存里真的有列表」才发：列表正文故意不落盘，而 ETag 落了盘，
+     * 于是进程一死（或她改了公告触发 [apply] 清空）内存空了、凭据还在。
+     * 下一次进列表页拿着旧凭据一问就是一个 304，服务端说「你那份还是最新的」，
+     * 可客户端手里只剩 bootstrap 那一条 —— 真机就是这样把历史那条「看一次就没了」。
+     */
+    val noticesEtag: String?
+        get() = store.getString(KEY_NOTICES_ETAG, null)
+            ?.takeIf { it.isNotBlank() && owned() && noticesState.value != null }
 
     fun applyNotices(items: List<Notice>, newEtag: String?) {
         if (newEtag != null) store.edit().putString(KEY_NOTICES_ETAG, newEtag).apply()
@@ -143,29 +152,61 @@ class RemoteStore private constructor(context: Context) {
     }
 
     /**
-     * 取走这条该不该自动弹出：同一条公告只给一次机会。
+     * 取走这条公告的「打扰一次」名额：弹窗和通知栏抢的是同一个名额。
+     *
+     * 一条公告在两个通道各提醒一遍是重复信号——人正在看首页时弹一条居中窗，同内容又挂进
+     * 通知栏，等于同一句话说了两次。所以名额只有一个，谁先拿到谁说：亮着首页的是弹窗，
+     * 没亮着首页的（切到后台、停在子页）才是通知栏。
+     *
+     * 记的是「提示到哪一号」而不是「提示过哪一号」，判据是 `<=`：公告 id 只增不减，
+     * 所以比它小的那些要么提示过、要么压根没上线过。真机踩过反例——11 号下线以后 10 号重新生效，
+     * 按「等于上一个」记的话 10 号成了新面孔，同一条公告第二次挂进通知栏、第二次弹窗。
+     *
+     * 拿不到名额不等于这条不出现：红点照挂，公告列表照进。这里管的只是「主动出声」那一次。
      *
      * 立刻落库而不是等弹窗关闭再记：杀进程重来的第二次启动如果还能弹，
      * 「只弹一次」就变成「每次冷启动都弹」，那是打扰。
      */
-    fun takeNoticePopup(notice: Notice?): Notice? {
+    fun takeNoticeAttention(notice: Notice?): Notice? {
         val pending = notice ?: return null
-        if (pending.id <= 0 || store.getInt(KEY_POPPED, 0) == pending.id) return null
-        store.edit().putInt(KEY_POPPED, pending.id).apply()
+        if (pending.id <= 0 || pending.id <= store.getInt(KEY_ATTENTION, 0)) return null
+        store.edit().putInt(KEY_ATTENTION, pending.id).apply()
         return pending
     }
+
+    /**
+     * 通知栏现在挂着的是哪一条公告。0 = 没挂着。
+     *
+     * 只在本机记账，用来做「后台下线跟着撤」：下次和后台答上话时拿它和当前生效那条比，
+     * 对不上就把那条通知撤掉——不然公告早就下天了，通知还挂在人下拉列表里。
+     * 点通知进 App 时也由它决定撤哪一条。
+     */
+    var noticeNotifiedId: Int
+        get() = store.getInt(KEY_NOTIFIED, 0)
+        set(value) {
+            store.edit().putInt(KEY_NOTIFIED, value).apply()
+        }
 
     /** 上次拿到的 ETag；只对当前这个后台有效，换了地址就当没拿到过。 */
     val etag: String? get() = store.getString(KEY_ETAG, null)?.takeIf { it.isNotBlank() && owned() }
 
-    val lastAttemptMs: Long get() = store.getLong(KEY_ATTEMPT, 0L)
+    /**
+     * 上次尝试的时刻。和 ETag 一样只对当前这个后台作数。
+     *
+     * 内容早就按源站归因了，时间戳以前没有，于是留着一个真机踩过的口子：本机先指联调用的
+     * 内置服务器、再换回正式域名，`hub_attempt` 还是上一个地址写下的。公告那条只被挡几分钟
+     * 看不出来，而上报的闸门是 24 小时——换过一次地址的设备就此从后台的设备列表里消失一整天，
+     * 看上去和「它压根没发」一模一样。读了要归因，写不用：第一次成功就把这个数换成新地址的了。
+     */
+    val lastAttemptMs: Long get() = if (owned()) store.getLong(KEY_ATTEMPT, 0L) else 0L
 
     /** 公告复验间隔（分钟）。后台没答过话时按默认值，和后台的默认值是同一个数。 */
     val revalidateMin: Int get() = HubRules.minutes(store.getInt(KEY_REVALIDATE_M, HubRules.DEFAULT_REVALIDATE_MIN))
 
     val reportHours: Int get() = store.getInt(KEY_REPORT_H, HubRules.DEFAULT_REPORT_HOURS)
 
-    val lastReportMs: Long get() = store.getLong(KEY_REPORT, 0L)
+    /** 同 [lastAttemptMs]：换过源站就当从没上报过，不然这台设备要等满 24 小时才重新出现。 */
+    val lastReportMs: Long get() = if (owned()) store.getLong(KEY_REPORT, 0L) else 0L
 
     /** 后台的熔断位。关掉时本机开关就算开着也不发。 */
     val policyOn: Boolean get() = store.getBoolean(KEY_POLICY_ON, true)
@@ -183,10 +224,14 @@ class RemoteStore private constructor(context: Context) {
         val release = config.release
         // 在赋值之前取旧 id：赋完再比，两边永远是同一个值，这条判断就成了永远不成立的死代码。
         val previousId = noticeState.value?.id
+        // 换过源站就把「打扰到哪一号」清零：id 只在它自己那台后台有序，拿正式站的 8 号去和
+        // 沙盒的 11 号比，正式站的公告会永远以为自己已经提示过了。
+        val originChanged = store.getString(KEY_ORIGIN, null) != hubOrigin
         store.edit().apply {
             putLong(KEY_CONFIRMED, nowMs)
             putLong(KEY_ATTEMPT, nowMs)
             putString(KEY_ORIGIN, hubOrigin.orEmpty())
+            if (originChanged) remove(KEY_ATTENTION)
             putInt(KEY_REVALIDATE_M, HubRules.minutes(config.policy.revalidateMin))
             putInt(KEY_REPORT_H, HubRules.hours(config.policy.reportHours).toInt())
             putBoolean(KEY_POLICY_ON, config.policy.statsOn)
@@ -198,6 +243,7 @@ class RemoteStore private constructor(context: Context) {
                 remove(KEY_UR)
                 remove(KEY_LV)
                 remove(KEY_EXP)
+                remove(KEY_PUB)
             } else {
                 putInt(KEY_ID, notice.id)
                 putString(KEY_TI, notice.title)
@@ -205,6 +251,7 @@ class RemoteStore private constructor(context: Context) {
                 putString(KEY_UR, notice.url)
                 putString(KEY_LV, notice.level)
                 putLong(KEY_EXP, notice.expMs)
+                putLong(KEY_PUB, notice.pubMs)
             }
             if (release == null) {
                 remove(KEY_REL)
@@ -257,7 +304,8 @@ class RemoteStore private constructor(context: Context) {
             body = store.getString(KEY_BD, "").orEmpty(),
             url = store.getString(KEY_UR, "").orEmpty(),
             level = store.getString(KEY_LV, "info").orEmpty(),
-            expMs = store.getLong(KEY_EXP, 0L)
+            expMs = store.getLong(KEY_EXP, 0L),
+            pubMs = store.getLong(KEY_PUB, 0L)
         )
     }
 
@@ -277,13 +325,16 @@ class RemoteStore private constructor(context: Context) {
         private const val KEY_SEED = "hub_seed"
         private const val KEY_REL = "hub_release"
         private const val KEY_SEEN = "notice_seen_id"
-        private const val KEY_POPPED = "notice_popped_id"
+        // 键名沿用装了弹窗那版写下的 `notice_popped_id`：改名会让已弹过的那条在升级后再弹一次。
+        private const val KEY_ATTENTION = "notice_popped_id"
+        private const val KEY_NOTIFIED = "notice_notified_id"
         private const val KEY_ID = "notice_id"
         private const val KEY_TI = "notice_title"
         private const val KEY_BD = "notice_body"
         private const val KEY_UR = "notice_url"
         private const val KEY_LV = "notice_level"
         private const val KEY_EXP = "notice_exp_ms"
+        private const val KEY_PUB = "notice_pub_ms"
 
         /** 16 字节随机数写成 32 位十六进制：和将来上报用的匿名设备 ID 同一个形状，但两者互不相干。 */
         private fun newSeed(): String {

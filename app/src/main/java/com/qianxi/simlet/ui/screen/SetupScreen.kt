@@ -27,9 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.annotation.StringRes
 import com.qianxi.simlet.R
 import com.qianxi.simlet.core.ShizukuLink
-import com.qianxi.simlet.remote.RemoteStore
 import com.qianxi.simlet.ui.component.LabeledValue
-import com.qianxi.simlet.ui.component.NoticeSlot
 import com.qianxi.simlet.ui.component.RowDivider
 import com.qianxi.simlet.ui.component.SettingGroup
 import com.qianxi.simlet.ui.component.SettingRow
@@ -55,11 +53,9 @@ fun resolveSetupStage(context: android.content.Context): SetupStage = when {
 fun SetupScreen(
     stage: SetupStage,
     onRequestPermission: () -> Unit,
-    onRecheck: () -> Unit,
-    onOpenNotices: () -> Unit
+    onRecheck: () -> Unit
 ) {
     val context = LocalContext.current
-    val remote = RemoteStore.of(context)
 
     val (titleRes, detailRes, action) = when (stage) {
         SetupStage.NOT_INSTALLED -> Triple(
@@ -114,10 +110,8 @@ fun SetupScreen(
             )
             Spacer(Modifier.height(28.dp))
 
-            // 公告在门页上也要出现：停在这页的是还没授权的用户，而「Shizuku 打不开怎么办」
-            // 「某个机型这一版别用」那类话就是说给他们听的。摆在自检表上面，先看完再往下走。
-            NoticeSlot(remote = remote, onOpenNotices = onOpenNotices)
-
+            // 公告不挂在这一页。这一页只做一件事：把权限拿到手；
+            // 授权还没成，先把一条和授权无关的公告弹到人脸上，等于在最要紧的那一步中间插了个岔。
             SettingGroup(title = stringResource(R.string.setup_env_check)) {
                 LabeledValue(
                     stringResource(R.string.setup_android_version),

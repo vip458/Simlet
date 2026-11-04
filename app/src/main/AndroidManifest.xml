@@ -8,6 +8,11 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Android 8 起拉起系统安装器需要用户单独授予「安装未知应用」 -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <!--
+      公告的通知栏那一份。13 起是运行时权限，本机第一次有公告可提醒时才问；
+      不给也照常：红点和公告列表都不受影响。
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <!--
       这两个是 signature|privileged 权限，安装时不会被授予。

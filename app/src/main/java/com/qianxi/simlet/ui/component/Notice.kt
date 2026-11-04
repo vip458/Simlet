@@ -37,6 +37,9 @@ fun NoticeSection(notice: Notice, unread: Boolean, onOpen: () -> Unit) {
         SettingRow(
             title = notice.title,
             icon = Bullhorn.Outline,
+            // 日期占右侧那一列，和 SIM 行的「CN」同一个位置、同一个字号：
+            // 内容不写日期的公告，事后翻出来不知道是哪天发的。
+            value = notice.dateText(),
             // 普通级别不给徽章：彩色位一次只承载一个信号，红点已经占了。
             badge = when (notice.level) {
                 "warn" -> stringResource(R.string.notice_level_warn)
@@ -81,6 +84,9 @@ fun NoticeDialog(visible: Boolean, notice: Notice?, onDismiss: () -> Unit) {
         visible = true,
         title = notice.title,
         body = notice.body,
+        // 弹窗是「这一条公告」的完整交代，日期必须在这里也能看到：
+        // 内容不写日期的话，翻出来一条根本不知道是哪天发的。
+        meta = notice.dateText().takeIf { it.isNotBlank() },
         onDismiss = onDismiss,
         linkText = link?.let { stringResource(R.string.notice_open_link) },
         onLink = link?.let { target -> { context.openWebPage(target) } }
@@ -88,19 +94,21 @@ fun NoticeDialog(visible: Boolean, notice: Notice?, onDismiss: () -> Unit) {
 }
 
 /**
- * 公告位：首页与环境自检页共用的一整块（分组行 + 刚推送那一次的自动弹窗）。
+ * 公告位：首页那一整块（分组行 + 刚推送那一次的自动弹窗）。
  *
- * 抽出来是因为这两件事在两个页面上都得成立：刚推送的那一条要弹，行要能点进列表。
- * 停在环境自检的是还没授权的用户，而「Shizuku 打不开怎么办」「某个机型这版别用」这类话
- * 就是说给他们的——公告只挂在首页，等于发给了看不到它的人。
+ * 只挂首页。以前环境自检页也挂着一份，理由是「停在那页的正是还没授权的用户，
+ * Shizuku 打不开怎么办这类话就是说给他们听的」——理由不假，但授权还没成
+ * 就把一条和授权无关的公告弹到人脸上，等于在最要紧的那一步中间插了个岔，所以撤了。
+ * 真要发「某个机型这版别用」，用户授权完进首页第一眼就是它。
  */
 @Composable
 fun NoticeSlot(remote: RemoteStore, onOpenNotices: () -> Unit) {
     var dialogOpen by remember { mutableStateOf(false) }
     val notice = remote.notice
-    // 取走的同时就把这条记成「已弹过」，杀进程重来不会再弹；未读点不走这里，弹过一次不等于读过。
+    // 「打扰一次」的名额在这里被弹窗取走：取走的同时就把这条记 down，杀进程重来不会再弹。
+    // 通知栏抢的是同一个名额，规则见 RemoteStore.takeNoticeAttention。
     LaunchedEffect(notice?.id) {
-        if (remote.takeNoticePopup(notice) != null) dialogOpen = true
+        if (remote.takeNoticeAttention(notice) != null) dialogOpen = true
     }
     notice?.let { item ->
         NoticeSection(

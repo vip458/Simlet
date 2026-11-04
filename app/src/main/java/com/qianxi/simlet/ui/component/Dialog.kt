@@ -244,7 +244,8 @@ fun InfoDialog(
     onDismiss: () -> Unit,
     linkText: String? = null,
     onLink: (() -> Unit)? = null,
-    dismissText: String? = null
+    dismissText: String? = null,
+    meta: String? = null
 ) {
     val hasLink = linkText != null && onLink != null
     SimletDialog(
@@ -255,6 +256,15 @@ fun InfoDialog(
         onConfirm = onLink,
         dismissText = if (hasLink) null else dismissText ?: stringResource(R.string.dialog_close)
     ) {
+        // 日期摆在正文上面单独一行：混进正文里，第一条「1. 测试」就会和它挤成一句。
+        if (!meta.isNullOrBlank()) {
+            Text(
+                meta,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(8.dp))
+        }
         Text(
             body,
             style = MaterialTheme.typography.bodyMedium,

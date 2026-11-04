@@ -108,6 +108,10 @@
     <string name="notices_empty">No notices yet.</string>
     <string name="notices_offline">Withdrawn</string>
     <string name="notices_failed">The server could not be reached; the list above is what this device has stored.</string>
+    <!-- 通知栏那一条：正文放公告标题，标题行说「这是什么」 -->
+    <string name="notice_bar_title">New notice</string>
+    <string name="notice_bar_channel">Notice alerts</string>
+    <string name="notice_bar_channel_desc">A single reminder when a new notice is published</string>
 
     <!-- 统计开关：只有构建时配了自建后台地址才会出现这一行 -->
     <string name="settings_stats">Share anonymous usage stats</string>

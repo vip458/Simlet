@@ -1,6 +1,8 @@
 package com.qianxi.simlet
 
+import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
@@ -11,6 +13,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
@@ -24,14 +27,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
 import com.qianxi.simlet.core.HiddenAccess
 import com.qianxi.simlet.core.PlanStore
 import com.qianxi.simlet.core.ShizukuLink
 import com.qianxi.simlet.remote.HubClient
 import com.qianxi.simlet.remote.HubOutcome
 import com.qianxi.simlet.remote.HubRules
+import com.qianxi.simlet.remote.Notice
+import com.qianxi.simlet.remote.NoticeNotifier
 import com.qianxi.simlet.remote.RemoteStore
 import com.qianxi.simlet.ui.UiPrefs
+import com.qianxi.simlet.ui.component.NoticeDialog
 import com.qianxi.simlet.ui.screen.AboutScreen
 import com.qianxi.simlet.ui.screen.HomeScreen
 import com.qianxi.simlet.ui.screen.LicenseScreen
@@ -97,7 +104,19 @@ class SimletActivity : ComponentActivity() {
 
     private var askedAutomatically = false
     private var reapplyStarted = false
+    private var askedNotifications = false
+
+    /** 从通知栏点进来要摆的那一条。放在 Activity 而不是页面里：点通知时人在哪一屏都可能。 */
+    private var noticeFromBar by mutableStateOf<Notice?>(null)
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /**
+     * 通知权限这一问不给结果加反应。
+     *
+     * 拒了不做任何提示：公告照样在首页那一行、照样有红点、照样进列表，通知栏只是多出来的那条通道。
+     * 为一个「少一种提醒方式」弹一段解释，比没有提醒更扰人。
+     */
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     private val permissionResult = Shizuku.OnRequestPermissionResultListener { _, result ->
         runOnUiThread {
@@ -148,6 +167,7 @@ class SimletActivity : ComponentActivity() {
 
         syncState()
         askAutomatically()
+        showNoticeFromIntent(intent)
 
         setContent {
             SimletTheme {
@@ -197,7 +217,6 @@ class SimletActivity : ComponentActivity() {
                         Page.Setup -> SetupScreen(
                             stage = stage,
                             onRequestPermission = ::askPermission,
-                            onOpenNotices = { push(Page.Notices) },
                             onRecheck = {
                                 syncState()
                                 askAutomatically()
@@ -205,8 +224,40 @@ class SimletActivity : ComponentActivity() {
                         )
                     }
                 }
+                // 通知栏那条点进来的弹窗摆在这一层：它不属于任何一屏，人在子页时点通知也得能看见。
+                NoticeDialog(
+                    visible = noticeFromBar != null,
+                    notice = noticeFromBar,
+                    onDismiss = { noticeFromBar = null }
+                )
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        showNoticeFromIntent(intent)
+    }
+
+    /**
+     * 从通知栏点进来：直接把这一条的居中弹窗摆出来，不停在首页让人再找一遍。
+     *
+     * 顺手清两样账：通知本身（autoCancel 已经收了，但本机记的「挂着哪条」要一起抹掉，
+     * 不然下次比对会去撤一条早就不在的），和那个红点——他人已经在这条公告面前了。
+     *
+     * 这条已经不生效（换过了、下线了、本机判过期了）就不编一个弹窗出来，正常落到界面。
+     */
+    private fun showNoticeFromIntent(intent: Intent?) {
+        val id = intent?.getIntExtra(EXTRA_NOTICE_ID, 0) ?: return
+        if (id <= 0) return
+        // 取走就抹掉：转屏重建 Activity 时读的还是同一个 Intent，不抹会再弹一次。
+        intent.removeExtra(EXTRA_NOTICE_ID)
+        val store = RemoteStore.of(this)
+        NoticeNotifier.dismiss(this, store)
+        val notice = store.notice?.takeIf { it.id == id } ?: return
+        store.markNoticeSeen(id)
+        noticeFromBar = notice
     }
 
     private fun push(route: Page) {
@@ -225,6 +276,27 @@ class SimletActivity : ComponentActivity() {
         // 这里不再加「本实例试过没有」的开关：闸门在 prefs 的时间戳上，跨实例也作数，
         // 而实例级开关恰恰挡不住它想挡的那种情况（系统连续重建两个实例，两边都是新实例）。
         syncHubOnce()
+        askNotificationsOnce()
+    }
+
+    /**
+     * 通知权限只在「真有一条公告可提醒、且人正停在首页」时问一次。
+     *
+     * 不在启动时问：没有公告的设备不该为一个用不上的通道看到系统弹窗。
+     * 不在子页或后台问：那会把系统弹窗排到下一次前台，点进来的人莫名其妙。
+     * 拒了也不追第二次：`askedNotifications` 是实例级的，重装进程才重置——
+     * Android 13 之后第二次点「不允许」就是永久拒绝，再 launch 只会白白挡一次首页。
+     *
+     * 这一问只看运行时权限，不看通知总闸：总闸被人关过不等于没给过权限，
+     * 为一个系统已经答过「允许」的东西再弹一次窗，是把设置页里的一次调整当成拒绝。
+     */
+    private fun askNotificationsOnce() {
+        if (askedNotifications || !HubRules.enabled(BuildConfig.HUB_BASE_URL)) return
+        if (NoticeNotifier.granted(this)) return
+        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) || stack.isNotEmpty() || !ready) return
+        if (RemoteStore.of(this).notice == null) return
+        askedNotifications = true
+        notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     private fun syncState() {
@@ -307,6 +379,31 @@ class SimletActivity : ComponentActivity() {
                 HubOutcome.Cached -> store.markAttempt(at, confirmed = true)
                 HubOutcome.Unreachable -> Unit
             }
+            syncNoticeBar(store)
+        }
+    }
+
+    /**
+     * 让通知栏跟着公告走：该挂的挂上，不该留的撤掉。
+     *
+     * 挂的前提是「这条落地时人没在首页」。亮着首页的那一次已经被居中弹窗说过了，同一个公告
+     * 只有一个「主动出声」的名额（RemoteStore.takeNoticeAttention），两处都响就是同一句话讲两遍。
+     * 名额没被弹窗拿走的情况：切去后台了、或者停在子页——这两种恰恰是公告没人看见的时刻。
+     *
+     * 撤的判据是「挂着的这条已经不是当前生效的那条」：后台下线、换了一条、本机按止期判过期，
+     * 三种都算。公告早就不播了而通知还挂在人下拉列表里，是发出去收不回来的那种难看。
+     * 这里三条分支都要走（包括没连上的那条），因为「本机判过期」不需要网络。
+     */
+    private fun syncNoticeBar(store: RemoteStore) {
+        val live = store.notice
+        if (store.noticeNotifiedId > 0 && store.noticeNotifiedId != live?.id) NoticeNotifier.dismiss(this, store)
+        if (live == null) return
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && stack.isEmpty() && ready) return
+        // 没有许可就不占名额：占了这个弹窗也不会补上，那条公告等于什么提示都没有过。
+        if (!NoticeNotifier.allowed(this)) return
+        if (store.takeNoticeAttention(live) != null) {
+            NoticeNotifier.show(this, store, live)
+            Log.i(HUB_TAG, "公告已挂进通知栏 id=${live.id}")
         }
     }
 
@@ -369,5 +466,8 @@ class SimletActivity : ComponentActivity() {
 
     companion object {
         private const val EXTRA_ROUTES = "simlet.routes"
+
+        /** 通知栏带进来的那一条公告。给 NoticeNotifier 和这里读同一个键，别各写一个字符串。 */
+        const val EXTRA_NOTICE_ID = "simlet.notice_id"
     }
 }

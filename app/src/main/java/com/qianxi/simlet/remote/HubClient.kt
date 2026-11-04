@@ -7,6 +7,10 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 import java.util.zip.GZIPInputStream
 
 /**
@@ -18,8 +22,9 @@ import java.util.zip.GZIPInputStream
  * 不让每个判据各乘一遍 1000。有了它，公告到点消失就不依赖网络：断网、后台宕了、
  * 被人关了熔断，本机自己就能把这条撤掉。
  *
- * [pubMs] 和 [live] 只有列表页用得上（bootstrap 那条通道只会给生效中的一条，所以两个默认值
- * 就是「生效中、日期未知」）。日期只在列表里露一次，不值得为它单独造一个类型。
+ * [pubMs] 和 [live] 里，live 只有列表页用得上（bootstrap 那条通道只会给生效中的一条）。
+ * 日期从 1.2.4 起两条通道都给，所以首页那一行、弹窗、列表行、通知栏说的是同一天，
+ * 不必为它单独造一个类型。
  */
 data class Notice(
     val id: Int,
@@ -30,7 +35,23 @@ data class Notice(
     val expMs: Long = 0L,
     val pubMs: Long = 0L,
     val live: Boolean = true
-)
+) {
+    /**
+     * 这条公告是哪天发的。
+     *
+     * 当年只写月-日：一屏里全是「11-03」比全是「2026-11-03」好读，而年份是这一屏的共同前提；
+     * 跨年才把年份带回来，否则翻到去年那条会读成「还没发生的 11-03」。
+     * 后台没给 `at`（从没上线过的草稿不会下发，所以只剩「老包发的公告」这一种可能）时返回空串，
+     * 界面上那一列整个不出现——不编一个「未知」占位。
+     */
+    fun dateText(): String {
+        if (pubMs <= 0L) return ""
+        val now = Calendar.getInstance()
+        val then = Calendar.getInstance().apply { timeInMillis = pubMs }
+        val pattern = if (now.get(Calendar.YEAR) == then.get(Calendar.YEAR)) "MM-dd" else "yyyy-MM-dd"
+        return SimpleDateFormat(pattern, Locale.getDefault()).format(Date(pubMs))
+    }
+}
 
 /**
  * 采集策略。
