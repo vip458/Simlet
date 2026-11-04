@@ -18,6 +18,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -36,6 +41,7 @@ import com.qianxi.simlet.ui.openWebPage
 import com.qianxi.simlet.ui.theme.SimletButtonShape
 import dev.reicon.Refresh
 import dev.reicon.Settings
+import kotlinx.coroutines.delay
 
 enum class SetupStage { NOT_INSTALLED, SERVICE_DOWN, PERMISSION_PENDING, SERVER_TOO_OLD }
 
@@ -56,6 +62,17 @@ fun SetupScreen(
     onRecheck: () -> Unit
 ) {
     val context = LocalContext.current
+
+    // 服务端的补丁版本号是 attach 回包填进来的，比 binder 到达晚几十毫秒：
+    // 刚进这一页就读，读到的是「还不知道」，那一行会显示成不支持。给它一次重读，
+    // 免得人对着一个灰点去升级 Shizuku——而这台机器其实什么都好。
+    var delegateOk by remember { mutableStateOf(ShizukuLink.delegateCapable()) }
+    LaunchedEffect(Unit) {
+        if (!delegateOk) {
+            delay(400)
+            delegateOk = ShizukuLink.delegateCapable()
+        }
+    }
 
     val (titleRes, detailRes, action) = when (stage) {
         SetupStage.NOT_INSTALLED -> Triple(
@@ -131,7 +148,7 @@ fun SetupScreen(
                     stringResource(R.string.setup_shizuku_version),
                     if (ShizukuLink.binderAlive()) ShizukuLink.serverVersion().toString()
                     else stringResource(R.string.setup_unknown),
-                    emphasized = ShizukuLink.binderAlive() && ShizukuLink.delegateCapable()
+                    emphasized = delegateOk
                 )
                 RowDivider()
                 SettingRow(
@@ -144,7 +161,7 @@ fun SetupScreen(
                 SettingRow(
                     title = stringResource(R.string.setup_delegate_ok),
                     trailing = {
-                        StatusDot(ready = ShizukuLink.delegateCapable(), modifier = Modifier.padding(start = 10.dp))
+                        StatusDot(ready = delegateOk, modifier = Modifier.padding(start = 10.dp))
                     }
                 )
             }

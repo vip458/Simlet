@@ -7,14 +7,16 @@ import rikka.shizuku.Shizuku
 import rikka.shizuku.ShizukuBinderWrapper
 import java.io.InputStream
 
+/** 通道三要的服务端档位：API 13 且小版本 6 起，也就是 13.6。见 [delegateReady]。 */
+private const val MIN_DELEGATE_API = 13
+private const val MIN_DELEGATE_PATCH = 6
+
 /**
  * Shizuku 接入面：连接状态、授权、以 shell 身份执行命令、代理系统服务 binder。
  */
 object ShizukuLink {
 
     private val PACKAGES = listOf("moe.shizuku.privileged.api", "moe.shizuku.manager")
-
-    const val MIN_DELEGATE_VERSION = 130600
 
     /**
      * 用 [Shizuku.pingBinder] 而不是直接取缓存的 binder：
@@ -26,8 +28,23 @@ object ShizukuLink {
         runCatching { Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED }
             .getOrDefault(false)
 
-    /** 委托 shell 权限身份的能力由服务端提供，版本过低时第三级兜底也走不通。 */
-    fun delegateCapable(): Boolean = runCatching { Shizuku.getVersion() >= MIN_DELEGATE_VERSION }.getOrDefault(false)
+    /**
+     * 通道三靠「以 shell 身份代理 binder 调用」，这条路要的服务端档位是 13.6 起。
+     *
+     * 档位是两个数一起报的：`getVersion()` 给 API 号，`getServerPatchVersion()` 给小版本，
+     * 中间没有「13.6.0 = 130600」那种拼法。红米实测（Shizuku-Next 14.0.31，adb 启动）：
+     * `api=13 patch=6 uid=2000`——分支版把应用版本号升到 14，报给客户端的仍然是 13/6。
+     *
+     * 原来这里写的是 `getVersion() >= 130600`，也就是拿 13 去比 130600：永远不成立，
+     * 于是自检页那一行在任何机器上都是灰点。那不是「这台不支持」，是我们把档位读错了。
+     *
+     * 这两个数由服务端 attach 的回包填进来，连上之前各是 -1，所以那时候判为不支持；
+     * 界面给了一次重读（见 SetupScreen），别拿冷启动那一瞬的灰点去劝人升级 Shizuku。
+     */
+    fun delegateCapable(): Boolean = delegateReady(
+        api = runCatching { Shizuku.getVersion() }.getOrDefault(-1),
+        patch = runCatching { Shizuku.getServerPatchVersion() }.getOrDefault(-1)
+    )
 
     fun serverVersion(): Int = runCatching { Shizuku.getVersion() }.getOrDefault(0)
 
@@ -99,3 +116,13 @@ object ShizukuLink {
         val merged: String get() = listOf(stdout, stderr).filter(String::isNotBlank).joinToString("\n")
     }
 }
+
+/**
+ * 13.6 起才有走通道三的那条委托路。两个数分开比，谁大谁小一目了然：
+ * 13/5 不算，13/6 算，14/0 也算，读不到（-1）一律不算支持。
+ *
+ * 拆成纯函数是为了让 JVM 单测能钉住它——上一版就是因为它长在 `Shizuku` 调用里，
+ * 没法测，才把 13 和 130600 放在一起比了那么久。
+ */
+internal fun delegateReady(api: Int, patch: Int): Boolean =
+    api > MIN_DELEGATE_API || (api == MIN_DELEGATE_API && patch >= MIN_DELEGATE_PATCH)

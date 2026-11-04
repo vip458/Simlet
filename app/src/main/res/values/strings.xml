@@ -73,7 +73,7 @@
     <string name="setup_shizuku_service">Shizuku 服务</string>
     <string name="setup_running">运行中</string>
     <string name="setup_not_running">未运行</string>
-    <string name="setup_shizuku_version">Shizuku 版本</string>
+    <string name="setup_shizuku_version">Shizuku API</string>
     <string name="setup_unknown">未知</string>
     <string name="setup_granted">已授权</string>
     <string name="setup_not_granted">未授权</string>
@@ -86,6 +86,8 @@
     <string name="setup_recheck">重新检测</string>
     <string name="toast_shizuku_first">请先启动 Shizuku 服务</string>
     <string name="toast_permission_denied">未授予 Shizuku 权限</string>
+    <!-- 点了按钮、系统却把 Shizuku 的弹窗拦在门外：这句要说清是谁没让弹，别让人以为是自己的选择 -->
+    <string name="toast_permission_no_dialog">Shizuku 的授权窗没有弹出：请在系统设置里允许它后台弹出界面</string>
 
     <!-- 设置 -->
     <string name="settings_title">设置</string>

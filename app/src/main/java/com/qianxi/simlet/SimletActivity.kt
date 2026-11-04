@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -106,6 +107,10 @@ class SimletActivity : ComponentActivity() {
     private var reapplyStarted = false
     private var askedNotifications = false
 
+    /** 上一次发授权请求的时刻（0 = 没有在等的结果）和它是谁点的：用来分清「人拒了」和「窗没弹出来」。 */
+    private var permissionAskedAt = 0L
+    private var permissionAskedManually = false
+
     /** 从通知栏点进来要摆的那一条。放在 Activity 而不是页面里：点通知时人在哪一屏都可能。 */
     private var noticeFromBar by mutableStateOf<Notice?>(null)
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -118,11 +123,30 @@ class SimletActivity : ComponentActivity() {
      */
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
+    /**
+     * 授权结果的两句话分开说。
+     *
+     * 一秒之内回到手的结果不可能是人做的选择——那只说明 Shizuku 的授权窗压根没弹出来
+     * （小米这类系统把「后台弹出界面」关掉就是这个下场）。那时候讲「未授予权限」是把系统拦窗
+     * 说成人的拒绝，人听完只会再去点一遍按钮，原地打转。
+     *
+     * 自动发起的那一次（打开 App 就发）不吭声：窗没弹出来不是用户的错，
+     * 而且每次冷启动都顶一句「去改系统设置」比不提示更扰人。
+     */
     private val permissionResult = Shizuku.OnRequestPermissionResultListener { _, result ->
         runOnUiThread {
             syncState()
-            if (result != PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, R.string.toast_permission_denied, Toast.LENGTH_LONG).show()
+            val asked = permissionAskedAt > 0L
+            val waited = SystemClock.elapsedRealtime() - permissionAskedAt
+            permissionAskedAt = 0L
+            if (result != PackageManager.PERMISSION_GRANTED && asked) {
+                when {
+                    waited >= NO_DIALOG_MS ->
+                        Toast.makeText(this, R.string.toast_permission_denied, Toast.LENGTH_LONG).show()
+
+                    permissionAskedManually ->
+                        Toast.makeText(this, R.string.toast_permission_no_dialog, Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
@@ -314,6 +338,8 @@ class SimletActivity : ComponentActivity() {
             syncState()
             return
         }
+        permissionAskedManually = true
+        permissionAskedAt = SystemClock.elapsedRealtime()
         ShizukuLink.askPermission()
         syncState()
     }
@@ -322,6 +348,8 @@ class SimletActivity : ComponentActivity() {
         if (askedAutomatically || ready) return
         if (ShizukuLink.binderAlive()) {
             askedAutomatically = true
+            permissionAskedManually = false
+            permissionAskedAt = SystemClock.elapsedRealtime()
             ShizukuLink.askPermission()
         }
     }
@@ -469,5 +497,8 @@ class SimletActivity : ComponentActivity() {
 
         /** 通知栏带进来的那一条公告。给 NoticeNotifier 和这里读同一个键，别各写一个字符串。 */
         const val EXTRA_NOTICE_ID = "simlet.notice_id"
+
+        /** 授权结果快过这个时刻就当「窗没弹出来」：人读一句话再点一下不可能短于一秒。 */
+        private const val NO_DIALOG_MS = 1_000L
     }
 }
