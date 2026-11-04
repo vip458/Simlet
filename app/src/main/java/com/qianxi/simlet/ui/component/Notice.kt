@@ -7,12 +7,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.qianxi.simlet.R
 import com.qianxi.simlet.remote.Notice
+import com.qianxi.simlet.remote.RemoteStore
 import com.qianxi.simlet.ui.openWebPage
 import dev.reicon.Bullhorn
 import dev.reicon.Globe
@@ -79,6 +85,35 @@ fun NoticeDialog(visible: Boolean, notice: Notice?, onDismiss: () -> Unit) {
         linkText = link?.let { stringResource(R.string.notice_open_link) },
         onLink = link?.let { target -> { context.openWebPage(target) } }
     )
+}
+
+/**
+ * 公告位：首页与环境自检页共用的一整块（分组行 + 刚推送那一次的自动弹窗）。
+ *
+ * 抽出来是因为这两件事在两个页面上都得成立：刚推送的那一条要弹，行要能点进列表。
+ * 停在环境自检的是还没授权的用户，而「Shizuku 打不开怎么办」「某个机型这版别用」这类话
+ * 就是说给他们的——公告只挂在首页，等于发给了看不到它的人。
+ */
+@Composable
+fun NoticeSlot(remote: RemoteStore, onOpenNotices: () -> Unit) {
+    var dialogOpen by remember { mutableStateOf(false) }
+    val notice = remote.notice
+    // 取走的同时就把这条记成「已弹过」，杀进程重来不会再弹；未读点不走这里，弹过一次不等于读过。
+    LaunchedEffect(notice?.id) {
+        if (remote.takeNoticePopup(notice) != null) dialogOpen = true
+    }
+    notice?.let { item ->
+        NoticeSection(
+            notice = item,
+            unread = remote.noticeUnread(item),
+            // 点这一行进的是公告列表，不再是弹窗：弹窗只留给「刚推送那一次」。
+            onOpen = {
+                onOpenNotices()
+                remote.markNoticeSeen(item.id)
+            }
+        )
+    }
+    NoticeDialog(visible = dialogOpen, notice = notice, onDismiss = { dialogOpen = false })
 }
 
 /**

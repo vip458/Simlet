@@ -44,8 +44,7 @@ import com.qianxi.simlet.ui.SimletViewModel
 import com.qianxi.simlet.ui.component.CriticalUpdateRow
 import com.qianxi.simlet.ui.component.HelpDialog
 import com.qianxi.simlet.ui.component.IsoPicker
-import com.qianxi.simlet.ui.component.NoticeSection
-import com.qianxi.simlet.ui.component.NoticeDialog
+import com.qianxi.simlet.ui.component.NoticeSlot
 import com.qianxi.simlet.ui.component.OperatorSheet
 import com.qianxi.simlet.ui.component.PickerRow
 import com.qianxi.simlet.ui.component.RegionSheet
@@ -70,7 +69,6 @@ fun HomeScreen(
     var regionSheetOpen by remember { mutableStateOf(false) }
     var operatorSheetOpen by remember { mutableStateOf(false) }
     var helpSheetOpen by remember { mutableStateOf(false) }
-    var noticeSheetOpen by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val remote = RemoteStore.of(context)
@@ -78,13 +76,6 @@ fun HomeScreen(
         val feedback = state.notice ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(feedback.render(context))
         viewModel.consumeNotice()
-    }
-
-    // 新公告自动弹一次：取走的同时就把这条记成「已弹过」，所以杀进程重来也不会再弹。
-    // 未读点不走这里——弹过一次不等于人读过，要点开口诀那句「查看后才消失」才成立。
-    val announcement = remote.notice
-    LaunchedEffect(announcement?.id) {
-        if (remote.takeNoticePopup(announcement) != null) noticeSheetOpen = true
     }
 
     AppScaffold(
@@ -156,18 +147,7 @@ fun HomeScreen(
             // 公告摆在第一组：藏在最后一组的公告等于没有公告。
             // 保存与还原在底部栏里、不随内容滚动，所以它顶不掉主操作。
             // 没配后台地址或后台没发公告时这一组不出现。
-            remote.notice?.let { notice ->
-                NoticeSection(
-                    notice = notice,
-                    unread = remote.noticeUnread(notice),
-                    // 点这一行进的是公告列表，不再是弹窗：弹窗只留给「刚推送那一次」。
-                    // 未读点仍然在这里清——进列表就等于读过了，和原来点弹窗清掉是同一个时机。
-                    onOpen = {
-                        onOpenNotices()
-                        remote.markNoticeSeen(notice.id)
-                    }
-                )
-            }
+            NoticeSlot(remote = remote, onOpenNotices = onOpenNotices)
 
             SettingGroup(title = stringResource(R.string.section_sim_cards)) {
                 when {
@@ -253,10 +233,4 @@ fun HomeScreen(
     )
 
     HelpDialog(visible = helpSheetOpen, onDismiss = { helpSheetOpen = false })
-
-    NoticeDialog(
-        visible = noticeSheetOpen,
-        notice = remote.notice,
-        onDismiss = { noticeSheetOpen = false }
-    )
 }

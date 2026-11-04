@@ -197,6 +197,7 @@ class SimletActivity : ComponentActivity() {
                         Page.Setup -> SetupScreen(
                             stage = stage,
                             onRequestPermission = ::askPermission,
+                            onOpenNotices = { push(Page.Notices) },
                             onRecheck = {
                                 syncState()
                                 askAutomatically()

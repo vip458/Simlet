@@ -27,7 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.annotation.StringRes
 import com.qianxi.simlet.R
 import com.qianxi.simlet.core.ShizukuLink
+import com.qianxi.simlet.remote.RemoteStore
 import com.qianxi.simlet.ui.component.LabeledValue
+import com.qianxi.simlet.ui.component.NoticeSlot
 import com.qianxi.simlet.ui.component.RowDivider
 import com.qianxi.simlet.ui.component.SettingGroup
 import com.qianxi.simlet.ui.component.SettingRow
@@ -50,8 +52,14 @@ fun resolveSetupStage(context: android.content.Context): SetupStage = when {
 }
 
 @Composable
-fun SetupScreen(stage: SetupStage, onRequestPermission: () -> Unit, onRecheck: () -> Unit) {
+fun SetupScreen(
+    stage: SetupStage,
+    onRequestPermission: () -> Unit,
+    onRecheck: () -> Unit,
+    onOpenNotices: () -> Unit
+) {
     val context = LocalContext.current
+    val remote = RemoteStore.of(context)
 
     val (titleRes, detailRes, action) = when (stage) {
         SetupStage.NOT_INSTALLED -> Triple(
@@ -105,6 +113,10 @@ fun SetupScreen(stage: SetupStage, onRequestPermission: () -> Unit, onRecheck: (
                 textAlign = TextAlign.Center
             )
             Spacer(Modifier.height(28.dp))
+
+            // 公告在门页上也要出现：停在这页的是还没授权的用户，而「Shizuku 打不开怎么办」
+            // 「某个机型这一版别用」那类话就是说给他们听的。摆在自检表上面，先看完再往下走。
+            NoticeSlot(remote = remote, onOpenNotices = onOpenNotices)
 
             SettingGroup(title = stringResource(R.string.setup_env_check)) {
                 LabeledValue(

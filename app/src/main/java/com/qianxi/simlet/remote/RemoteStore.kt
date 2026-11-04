@@ -29,6 +29,7 @@ class RemoteStore private constructor(context: Context) {
     private val noticeState = mutableStateOf(readNotice())
     private val releaseState = mutableStateOf(readRelease())
     private val noticesState = mutableStateOf<List<Notice>?>(null)
+    private val seenState = mutableStateOf(store.getInt(KEY_SEEN, 0))
     private val statsState = mutableStateOf(store.getBoolean(KEY_STATS, HubRules.DEFAULT_STATS_ON))
 
     /** 缓存里的东西是不是当前这个后台给的。 */
@@ -124,7 +125,7 @@ class RemoteStore private constructor(context: Context) {
     /** 这条公告用户自己点看过没有。后台没发、或这条不是当前这个后台给的时候，没有可提醒的东西。 */
     fun noticeUnread(notice: Notice?): Boolean {
         val id = notice?.id ?: return false
-        return owned() && id != store.getInt(KEY_SEEN, 0)
+        return owned() && id != seenState.value
     }
 
     /**
@@ -132,8 +133,12 @@ class RemoteStore private constructor(context: Context) {
      *
      * 自动弹出不走这里——那是一次提示，不等于人读过了。所以弹完点还在，
      * 直到他自己点开口诀那句「用户查看公告后未读提醒消失」才成立。
+     *
+     * 记成可观察状态而不是只写 prefs：界面读的是这个值，只落库不触发重组的话，
+     * 从公告列表返回首页时那个红点会一直挂到下次冷启动。真机踩过，两台都复现。
      */
     fun markNoticeSeen(id: Int) {
+        seenState.value = id
         store.edit().putInt(KEY_SEEN, id).apply()
     }
 
