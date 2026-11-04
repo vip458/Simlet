@@ -10,11 +10,19 @@ import java.net.URL
  */
 object HubRules {
 
-    /** 服务端还没答过话时用的拉取间隔，和后台 `poll_boot_h` 的默认值一致。 */
-    const val DEFAULT_BOOT_HOURS = 24
+    /**
+     * 公告复验间隔的默认值（分钟），和后台 `poll_boot_min` 的默认值一致。
+     *
+     * 这一项决定「后台点了下线，多久从手机上消失」。它不是 `poll_boot_h`：那个单位是小时、
+     * 下限 1 小时，装不下 30 分钟，而且它管的是响应正文允许在中间缓存里待多久。
+     */
+    const val DEFAULT_REVALIDATE_MIN = 30
 
     /** 后台没答话时假定它允许上报，和后台 `poll_on` 的默认值一致；真拿到策略前不会真的上报。 */
     const val DEFAULT_STATS_ON = true
+
+    /** 后台没答话时假定的上报间隔（小时），和后台 `poll_report_h` 的默认值一致。 */
+    const val DEFAULT_REPORT_HOURS = 24
 
     /**
      * 地址合法性：只允许 https，唯一例外是本机回环。
@@ -86,15 +94,38 @@ object HubRules {
     /** 间隔钳制：后台填错也不会出现「每秒钟问一次」或「永远不再问」。 */
     fun hours(value: Int): Long = value.coerceIn(1, 720).toLong()
 
+    /** 复验间隔的钳制。下限 5 分钟：再快也换不来「更早消失」，只会把额度花在空请求上。 */
+    fun minutes(value: Int): Int = value.coerceIn(5, 720)
+
+    /**
+     * 进首页时要不要再问一次公告。
+     *
+     * 和 [shouldFetch] 是两个判据，单位也不同：这个按分钟（默认 30），那个按小时（上报链路）。
+     * 分成两条是因为它们的代价完全不同——这条发的是带 ETag 的条件请求，命中 304 时服务端
+     * 零正文、零查询，客户端只付一次 TLS 握手；而公告下线的时效就取决于它多久跑一次。
+     *
+     * 用「上次尝试」而不是「上次成功」，和 shouldFetch 同一个理由：后台宕了的时候
+     * 每次切回首页都重试，只会让弱网用户多等一个连接超时。
+     */
+    fun shouldRevalidate(lastAttemptMs: Long, nowMs: Long, revalidateMin: Int): Boolean {
+        if (lastAttemptMs <= 0L) return true
+        return nowMs - lastAttemptMs >= minutes(revalidateMin) * 60_000L
+    }
+
     /**
      * 缓存的公告还算不算数。
      *
      * 200 和 304 都算「后台确认过」：304 的意思就是「你手上那份还是最新的」。
      * 只有长期一条都没确认过（后台换了、域名废了、这个 fork 指向了一个不存在的服务器）才不再显示——
      * 一条「v1.0.3 已发布」在用户已经装上 v1.0.3 半年之后还挂在首页，比没有公告更糟。
+     *
+     * [expMs] 是后台下发的止期，有止期的公告到点自己消失，**不需要联网**。
+     * 这一条是「异常公告能正常撤回」里唯一不依赖网络的那半：熔断关了、域名没了、
+     * 设备三个月没开过 App，都撤不掉一条挂死的公告，除非它带着止期。
      */
-    fun noticeLive(lastConfirmedMs: Long, nowMs: Long): Boolean {
+    fun noticeLive(lastConfirmedMs: Long, nowMs: Long, expMs: Long = 0L): Boolean {
         if (lastConfirmedMs <= 0L) return false
+        if (expMs > 0L && nowMs >= expMs) return false
         return nowMs - lastConfirmedMs < CACHE_MS
     }
 

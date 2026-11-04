@@ -9,25 +9,34 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.qianxi.simlet.BuildConfig
 import com.qianxi.simlet.R
 import com.qianxi.simlet.licenses.openSourceEntries
 import com.qianxi.simlet.remote.HubRules
+import com.qianxi.simlet.remote.RemoteStore
 import com.qianxi.simlet.ui.component.RowDivider
 import com.qianxi.simlet.ui.component.SettingGroup
 import com.qianxi.simlet.ui.component.SettingRow
 import com.qianxi.simlet.ui.component.RowTail
 import com.qianxi.simlet.ui.openWebPage
+import kotlinx.coroutines.launch
 import dev.reicon.Code
+import dev.reicon.Devices
 import dev.reicon.Globe
 
 private const val PROJECT_URL = "https://github.com/vip458/Simlet"
@@ -50,7 +59,19 @@ fun AboutScreen(
     onOpenStats: () -> Unit
 ) {
     val context = LocalContext.current
-    AppScaffold(title = stringResource(R.string.about_title), onBack = onBack) { insets ->
+    // 设备编号只在配了后台的构建里出现：不联网的自构建没有「报给谁」这件事，
+    // 摆一串谁也查不到的十六进制只会让人以为它是个 ID 要留着。
+    val hubEnabled = HubRules.enabled(BuildConfig.HUB_BASE_URL)
+    val remote = remember { RemoteStore.of(context) }
+    val clipboard = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val idCopied = stringResource(R.string.about_device_copied)
+    AppScaffold(
+        title = stringResource(R.string.about_title),
+        onBack = onBack,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { insets ->
         AppColumn(insets) {
             SettingGroup {
                 Column(
@@ -99,10 +120,24 @@ fun AboutScreen(
                         tail = RowTail.Next,
                         onClick = onOpenLicenses
                     )
+                    if (hubEnabled) {
+                        RowDivider()
+                        SettingRow(
+                            title = stringResource(R.string.about_device_id),
+                            icon = Devices.Outline,
+                            // 只露前 8 位：整串 32 位在这行里放不下，而复制走的是完整值。
+                            value = remote.deviceId.take(8) + "…",
+                            onClick = {
+                                clipboard.setText(AnnotatedString(remote.deviceId))
+                                snackbarHostState.currentSnackbarData?.dismiss()
+                                scope.launch { snackbarHostState.showSnackbar(idCopied) }
+                            }
+                        )
+                    }
                 }
 
                 // 没配后台地址的构建不联网：那条链点进去是一页「本机不会发任何东西」的说明。
-                val statsVisible = HubRules.enabled(BuildConfig.HUB_BASE_URL)
+                val statsVisible = hubEnabled
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

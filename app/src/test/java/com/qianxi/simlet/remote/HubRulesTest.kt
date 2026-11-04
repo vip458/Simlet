@@ -140,6 +140,80 @@ class HubRulesTest {
     }
 
     @Test
+    fun `进首页按分钟复验，和上报的小时闸门是两条`() {
+        val now = 1_762_000_000_000L
+        val minute = 60_000L
+        assertTrue(HubRules.shouldRevalidate(0L, now, 30))
+        assertFalse(HubRules.shouldRevalidate(now - 29 * minute, now, 30))
+        // 边界取等号：正好到点该问。
+        assertTrue(HubRules.shouldRevalidate(now - 30 * minute, now, 30))
+        assertTrue(HubRules.shouldRevalidate(now - 24 * hour, now, 30))
+        // 单位钉死：写成 60_000 之外的数，「半小时」会变成「半小时的 60 倍」或 1/60，
+        // 而这两种错在真机上都看不出来，只有流量条会跟着抖。
+        assertFalse(HubRules.shouldRevalidate(now - 30 * 1000L, now, 30))
+    }
+
+    @Test
+    fun `复验间隔的钳制：填错不会自旋，也不会永不问`() {
+        assertEquals(5, HubRules.minutes(0))
+        assertEquals(5, HubRules.minutes(-3))
+        assertEquals(720, HubRules.minutes(100000))
+        assertEquals(30, HubRules.minutes(30))
+        val now = 1_762_000_000_000L
+        // 后台填 0 的实际后果：五分钟一次，而不是每次回到前台都发。
+        assertFalse(HubRules.shouldRevalidate(now - 60_000L, now, 0))
+        assertTrue(HubRules.shouldRevalidate(now - 6 * 60_000L, now, 0))
+    }
+
+    @Test
+    fun `带止期的公告到点自己消失，不靠网络`() {
+        val now = 1_762_000_000_000L
+        val day = 24 * hour
+        // 没有止期（0）时行为和以前一模一样。
+        assertTrue(HubRules.noticeLive(now - day, now, 0L))
+        // 后台宕了、熔断关了、三个月没联网——只要止期过了，这条就该消失。
+        assertFalse(HubRules.noticeLive(now - day, now, now - 1000L))
+        assertFalse(HubRules.noticeLive(now - day, now, now))
+        assertTrue(HubRules.noticeLive(now - day, now, now + hour))
+        // 止期不能把「从没确认过」这条兜住：没确认过就没有可信的内容可显示。
+        assertFalse(HubRules.noticeLive(0L, now, now + day))
+    }
+
+    @Test
+    fun `响应里的止期和复验间隔解析成毫秒与分钟`() {
+        val body = """{"v":1,"g":7,"notice":{"id":4,"lv":"alert","ti":"下线测试","bd":"正文","ex":1762000000},""" +
+            """"rel":null,"pol":{"bm":24,"bv":45,"rp":12,"on":0}}"""
+        val config = parseHubConfig(body)
+        assertNotNull(config)
+        assertEquals(1762000000_000L, config!!.notice?.expMs)
+        assertEquals(45, config.policy.revalidateMin)
+        assertEquals(12, config.policy.reportHours)
+        assertFalse(config.policy.statsOn)
+        // 老后台没有 ex/bv：止期当没有，间隔退回默认值，而不是解析失败。
+        val legacy = parseHubConfig("""{"v":1,"notice":{"id":1,"ti":"只有标题"},"pol":{"bm":24,"rp":24,"on":1}}""")
+        assertEquals(0L, legacy!!.notice?.expMs)
+        assertEquals(HubRules.DEFAULT_REVALIDATE_MIN, legacy.policy.revalidateMin)
+    }
+
+    @Test
+    fun `历史列表解析：已下线的照样留，脏条目丢掉`() {
+        val body = """{"v":1,"g":3,"n":[
+            {"id":9,"lv":"info","ti":"最新一条","at":1762000000,"on":1},
+            {"id":8,"lv":"warn","ti":"已经撤下来","at":1761000000,"on":0},
+            {"id":7,"lv":"info","ti":"","bd":"没有标题的脏数据"}
+        ]}"""
+        val items = parseNoticeList(body)
+        assertNotNull(items)
+        assertEquals(2, items!!.size)
+        assertEquals(9, items[0].id)
+        assertTrue(items[0].live)
+        assertEquals(1761000000_000L, items[1].pubMs)
+        assertFalse(items[1].live)
+        // 坏 JSON 退化成 null（界面据此显示缓存），而不是抛出去把列表页搞崩。
+        assertNull(parseNoticeList("not json"))
+    }
+
+    @Test
     fun `只有后台登记的版本比本机新才提示`() {
         assertFalse(HubRules.updateWanted(3, null, SEED))
         // cd=0 是「后台没填」，不是「有个 0 号的包」。

@@ -91,6 +91,9 @@ dependencies {
     implementation("org.lsposed.hiddenapibypass:hiddenapibypass:4.3")
 
     testImplementation("junit:junit:4.13.2")
+    // 契约解析的单测要用真的 org.json：android.jar 里那份在 JVM 测试中是「一调就抛 not mocked」的桩，
+    // 而整套解析包在 runCatching 里，桩异常会被吞成「解析失败」，测试就永远测不到解析本身。
+    testImplementation("org.json:json:20240303")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.12.01"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")

@@ -62,6 +62,7 @@ import dev.reicon.Tower
 @Composable
 fun HomeScreen(
     onOpenSettings: () -> Unit,
+    onOpenNotices: () -> Unit,
     viewModel: SimletViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -159,8 +160,10 @@ fun HomeScreen(
                 NoticeSection(
                     notice = notice,
                     unread = remote.noticeUnread(notice),
+                    // 点这一行进的是公告列表，不再是弹窗：弹窗只留给「刚推送那一次」。
+                    // 未读点仍然在这里清——进列表就等于读过了，和原来点弹窗清掉是同一个时机。
                     onOpen = {
-                        noticeSheetOpen = true
+                        onOpenNotices()
                         remote.markNoticeSeen(notice.id)
                     }
                 )

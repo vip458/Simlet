@@ -5,6 +5,7 @@ import com.qianxi.simlet.BuildConfig
 import org.json.JSONObject
 import java.io.InputStream
 import java.net.HttpURLConnection
+import java.net.URL
 import java.net.URLEncoder
 import java.util.zip.GZIPInputStream
 
@@ -12,17 +13,35 @@ import java.util.zip.GZIPInputStream
  * 一条公告。
  *
  * `level` 只决定徽章，不驱动任何行为——工具类应用不该因为一条公告就拦操作或弹阻塞窗。
+ *
+ * [expMs] 是止期（epoch 毫秒），0 表示没有止期。服务端给的是秒，在这里一次换算掉，
+ * 不让每个判据各乘一遍 1000。有了它，公告到点消失就不依赖网络：断网、后台宕了、
+ * 被人关了熔断，本机自己就能把这条撤掉。
+ *
+ * [pubMs] 和 [live] 只有列表页用得上（bootstrap 那条通道只会给生效中的一条，所以两个默认值
+ * 就是「生效中、日期未知」）。日期只在列表里露一次，不值得为它单独造一个类型。
  */
 data class Notice(
     val id: Int,
     val title: String,
     val body: String,
     val url: String,
-    val level: String
+    val level: String,
+    val expMs: Long = 0L,
+    val pubMs: Long = 0L,
+    val live: Boolean = true
 )
 
-/** 采集策略。间隔按小时，statsOn 决定后面那个上报端点要不要发。 */
-data class Policy(val bootHours: Int, val reportHours: Int, val statsOn: Boolean)
+/**
+ * 采集策略。
+ *
+ * [revalidateMin] 是「进首页多久愿意再问一次公告」的分钟数，公告下线的时效由它决定；
+ * [reportHours] 是上报间隔小时数；[statsOn] 决定后面那个上报端点要不要发。
+ *
+ * 服务端还有一个 `bm`（正文缓存上限，小时）这里不解析：它只用来给响应的 max-age 封顶，
+ * 客户端读到的是 HTTP 头，不是这个字段。留一个读了不用的字段，下一个人就会去猜它该管什么。
+ */
+data class Policy(val revalidateMin: Int, val reportHours: Int, val statsOn: Boolean)
 
 data class HubConfig(val notice: Notice?, val release: HubRelease?, val policy: Policy)
 
@@ -71,6 +90,18 @@ sealed interface HubOutcome {
     data object Unreachable : HubOutcome
 }
 
+/** 历史公告列表的三种结果，形状和 [HubOutcome] 一样，只是正文换成了列表。 */
+sealed interface NoticesOutcome {
+
+    data class Updated(val items: List<Notice>, val etag: String?) : NoticesOutcome
+
+    /** 304：内存里那份列表还是最新的。 */
+    data object Cached : NoticesOutcome
+
+    /** 没拉到。列表页此时退回显示缓存里的那一条，而不是报错。 */
+    data object Unreachable : NoticesOutcome
+}
+
 /**
  * 读自建后台的公告与采集策略。
  *
@@ -83,51 +114,111 @@ object HubClient {
     private const val TAG = "SimletHub"
     private const val PATH = "/api/v1/bootstrap.php"
     private const val PING_PATH = "/api/v1/ping.php"
+    private const val NOTICES_PATH = "/api/v1/notices.php"
     private const val TIMEOUT_MS = 8_000
 
     /** 后台硬上限是 1500 字节；读到 16KB 还没完就说明不对，直接放弃而不是撑大内存。 */
     private const val MAX_BYTES = 16 * 1024
 
+    /** 历史列表的服务端上限是 24KB，留一倍余量；再大就不是后台发出来的东西。 */
+    private const val NOTICES_MAX_BYTES = 64 * 1024
+
     fun fetch(currentEtag: String?, lang: String, versionName: String, versionCode: Int): HubOutcome {
         val target = HubRules.url(BuildConfig.HUB_BASE_URL, PATH + query(lang, versionName, versionCode))
             ?: return HubOutcome.Unreachable
-        val connection = runCatching {
-            (target.openConnection() as HttpURLConnection).apply {
-                connectTimeout = TIMEOUT_MS
-                readTimeout = TIMEOUT_MS
-                instanceFollowRedirects = true
-                requestMethod = "GET"
-                setRequestProperty("Accept", "application/json")
-                setRequestProperty("Accept-Encoding", "gzip")
-                setRequestProperty("User-Agent", "Simlet-Android")
-                // 空 ETag 不发这个头：带一个空值会让某些 CDN 直接跳过复验。
-                currentEtag?.takeIf { it.isNotBlank() }?.let { setRequestProperty("If-None-Match", it) }
-            }
-        }.getOrElse {
-            Log.w(TAG, "打开连接失败: ${it.message}")
+        val connection = openGet(target, currentEtag) ?: return HubOutcome.Unreachable
+        val read = respond(connection, MAX_BYTES) ?: return HubOutcome.Unreachable
+        if (read.notModified) {
+            Log.d(TAG, "304，沿用本地缓存")
+            return HubOutcome.Cached
+        }
+        val config = parseHubConfig(read.body)
+        if (config == null) {
+            Log.w(TAG, "正文解析失败（${read.body.length} 字节）")
             return HubOutcome.Unreachable
         }
+        return HubOutcome.Updated(config, read.etag)
+    }
 
-        return try {
-            val code = connection.responseCode
-            when {
-                code == HttpURLConnection.HTTP_NOT_MODIFIED -> {
-                    Log.d(TAG, "304，沿用本地缓存")
-                    HubOutcome.Cached
-                }
-
-                code in 200..299 -> readBody(connection)
-                else -> {
-                    Log.w(TAG, "HTTP $code")
-                    HubOutcome.Unreachable
-                }
-            }
-        } catch (error: Exception) {
-            Log.w(TAG, "读取失败: ${error.message}")
-            HubOutcome.Unreachable
-        } finally {
-            connection.disconnect()
+    /**
+     * 拉历史公告列表。
+     *
+     * 只在用户真的点进列表页时发，所以它不参与启动链路。带 ETag 复验：同一代次里翻第二次列表
+     * 就是一个 304，只花一次握手，正文再不用重复下载。
+     */
+    fun fetchNotices(currentEtag: String?, lang: String): NoticesOutcome {
+        val path = NOTICES_PATH + "?lang=" + URLEncoder.encode(lang, "UTF-8")
+        val target = HubRules.url(BuildConfig.HUB_BASE_URL, path) ?: return NoticesOutcome.Unreachable
+        val connection = openGet(target, currentEtag) ?: return NoticesOutcome.Unreachable
+        val read = respond(connection, NOTICES_MAX_BYTES) ?: return NoticesOutcome.Unreachable
+        if (read.notModified) return NoticesOutcome.Cached
+        val items = parseNoticeList(read.body)
+        if (items == null) {
+            Log.w(TAG, "公告列表正文解析失败（${read.body.length} 字节）")
+            return NoticesOutcome.Unreachable
         }
+        return NoticesOutcome.Updated(items, read.etag)
+    }
+
+    /** 两个 GET 共用一次连接建立：超时、编码、ETag 头必须一致，抄两遍迟早会漏一条。 */
+    private fun openGet(target: URL, etag: String?): HttpURLConnection? = runCatching {
+        (target.openConnection() as HttpURLConnection).apply {
+            connectTimeout = TIMEOUT_MS
+            readTimeout = TIMEOUT_MS
+            instanceFollowRedirects = true
+            requestMethod = "GET"
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("Accept-Encoding", "gzip")
+            setRequestProperty("User-Agent", "Simlet-Android")
+            // 空 ETag 不发这个头：带一个空值会让某些 CDN 直接跳过复验。
+            etag?.takeIf { it.isNotBlank() }?.let { setRequestProperty("If-None-Match", it) }
+        }
+    }.getOrElse {
+        Log.w(TAG, "打开连接失败: ${it.message}")
+        null
+    }
+
+    /** 一次 GET 的结果：304、200 正文，或者 null（这次没问到）。 */
+    private class ReadBody(val body: String, val notModified: Boolean, val etag: String?)
+
+    /**
+     * 读一次响应，非 2xx 和读失败都退化成 null。
+     *
+     * 上限按端点给：bootstrap 的正文硬上限是 1500 字节，16KB 已经是「不对」；
+     * 列表端点最大 24KB，所以那里传 64KB。同一份读取代码，两个数。
+     */
+    private fun respond(connection: HttpURLConnection, limit: Int): ReadBody? = try {
+        val code = connection.responseCode
+        when {
+            code == HttpURLConnection.HTTP_NOT_MODIFIED -> ReadBody("", true, connection.headerEtag())
+            code in 200..299 -> ReadBody(readText(connection, limit), false, connection.headerEtag())
+            else -> {
+                Log.w(TAG, "HTTP $code")
+                null
+            }
+        }
+    } catch (error: Exception) {
+        Log.w(TAG, "读取失败: ${error.message}")
+        null
+    } finally {
+        connection.disconnect()
+    }
+
+    private fun HttpURLConnection.headerEtag(): String? =
+        getHeaderField("ETag")?.takeIf { it.isNotBlank() }
+
+    /** 解压前后各限一次：只限压缩后的话，一个 gzip 炸弹就能在 readBytes 里撑爆堆。 */
+    private fun readText(connection: HttpURLConnection, limit: Int): String {
+        val gzipped = connection.contentEncoding?.lowercase()?.contains("gzip") == true
+        val raw = connection.inputStream.use { it.limitedBytes(limit) }
+        if (!gzipped) return raw.toString(Charsets.UTF_8)
+        val decoded = runCatching {
+            GZIPInputStream(raw.inputStream()).use { it.limitedBytes(limit) }
+        }.getOrElse {
+            Log.w(TAG, "gzip 解压失败: ${it.message}")
+            return ""
+        }
+        return decoded.toString(Charsets.UTF_8)
     }
 
     /**
@@ -202,28 +293,6 @@ object HubClient {
             "&e=" + enc(event)
     }
 
-    private fun readBody(connection: HttpURLConnection): HubOutcome {
-        val gzipped = connection.contentEncoding?.lowercase()?.contains("gzip") == true
-        // 解压前后各限一次：后台的正常正文不到 1.5KB，超出上限一律按坏数据处理。
-        // 只限压缩后的话，一个 gzip 炸弹就能在 readBytes 里撑爆堆。
-        val raw = connection.inputStream.use { it.limitedBytes(MAX_BYTES) }
-        val decoded = if (gzipped) {
-            runCatching { GZIPInputStream(raw.inputStream()).use { it.limitedBytes(MAX_BYTES) } }
-                .getOrElse {
-                    Log.w(TAG, "gzip 解压失败: ${it.message}")
-                    return HubOutcome.Unreachable
-                }
-        } else {
-            raw
-        }
-        val config = parseHubConfig(decoded.toString(Charsets.UTF_8))
-        if (config == null) {
-            Log.w(TAG, "正文解析失败（${decoded.size} 字节）")
-            return HubOutcome.Unreachable
-        }
-        return HubOutcome.Updated(config, connection.getHeaderField("ETag")?.takeIf { it.isNotBlank() })
-    }
-
     /** 读到 limit 为止；超过就抛，不给对方用一个大响应换我们一次 OOM 的机会。 */
     private fun InputStream.limitedBytes(limit: Int): ByteArray {
         val buffer = java.io.ByteArrayOutputStream(8 * 1024)
@@ -257,22 +326,39 @@ internal fun parseHubConfig(body: String): HubConfig? = runCatching {
     val json = JSONObject(body)
     val policy = json.optJSONObject("pol")
     HubConfig(
-        notice = json.optJSONObject("notice")?.let { raw ->
-            Notice(
-                id = raw.optInt("id", 0),
-                title = raw.optString("ti"),
-                body = raw.optString("bd"),
-                url = raw.optString("ur"),
-                level = raw.optString("lv", "info")
-            )
-        }?.takeIf { it.title.isNotBlank() },
+        notice = json.optJSONObject("notice")?.let(::parseNotice)
+            ?.takeIf { it.title.isNotBlank() },
         release = json.optJSONObject("rel")?.let { parseRelease(it) },
         policy = Policy(
-            bootHours = policy?.optInt("bm", HubRules.DEFAULT_BOOT_HOURS) ?: HubRules.DEFAULT_BOOT_HOURS,
+            revalidateMin = policy?.optInt("bv", HubRules.DEFAULT_REVALIDATE_MIN) ?: HubRules.DEFAULT_REVALIDATE_MIN,
             reportHours = policy?.optInt("rp", 24) ?: 24,
             statsOn = policy?.optInt("on", if (HubRules.DEFAULT_STATS_ON) 1 else 0) != 0
         )
     )
+}.getOrNull()
+
+/** 公告的一条。bootstrap 和 notices 两个端点用的是同一个形状，所以解析也只写一处。 */
+internal fun parseNotice(raw: JSONObject): Notice = Notice(
+    id = raw.optInt("id", 0),
+    title = raw.optString("ti"),
+    body = raw.optString("bd"),
+    url = raw.optString("ur"),
+    level = raw.optString("lv", "info"),
+    expMs = raw.optLong("ex", 0L) * 1000L,
+    pubMs = raw.optLong("at", 0L) * 1000L,
+    // 只有列表端点会带 on；没带就当生效中，因为 bootstrap 只会下发当前生效的那一条。
+    live = raw.optInt("on", 1) != 0
+)
+
+/**
+ * 历史公告正文解析。整段包在 runCatching 里：一条脏数据不该让列表页白屏，
+ * 退化成「没拉到」以后界面还能显示缓存里的那一条。
+ */
+internal fun parseNoticeList(body: String): List<Notice>? = runCatching {
+    val array = JSONObject(body).optJSONArray("n") ?: return@runCatching emptyList()
+    (0 until array.length()).mapNotNull { index ->
+        array.optJSONObject(index)?.let(::parseNotice)?.takeIf { it.title.isNotBlank() }
+    }
 }.getOrNull()
 
 /** 后台的短键名与 docs/api-contract.md 一一对应；缺字段一律给「不影响判定」的默认值。 */

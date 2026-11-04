@@ -106,6 +106,10 @@
     <string name="notice_level_warn">提醒</string>
     <string name="notice_level_alert">重要</string>
     <string name="notice_open_link">查看详情</string>
+    <string name="notices_title">公告</string>
+    <string name="notices_empty">还没有公告。</string>
+    <string name="notices_offline">已下线</string>
+    <string name="notices_failed">没连上后台，上面这些是本机存着的旧内容。</string>
 
     <!-- 统计开关：只有构建时配了自建后台地址才会出现这一行 -->
     <string name="settings_stats">共享匿名使用统计</string>
@@ -162,7 +166,7 @@
     <string name="privacy_h3">数据存在哪</string>
     <string name="privacy_b3">卡槽、国家码、自定义名称只存本机应用私有目录，不上传、不云备份，卸载即清空。</string>
     <string name="privacy_h4">什么时候联网</string>
-    <string name="privacy_b4">你点「检查更新」那一次；公告每天最多一次；匿名统计每天最多一条（可关）。除此之外没有网络请求，无埋点、无广告、不传日志。</string>
+    <string name="privacy_b4">你点「检查更新」那一次；公告每半小时最多复验一次（没有新内容时只花一次连接）；匿名统计每天最多一条（可关）。除此之外没有网络请求，无埋点、无广告、不传日志。</string>
     <string name="privacy_h5">不收集</string>
     <string name="privacy_b5">手机号、IMSI、ICCID、设备序列号、位置、账号、广告标识符，以及你填写和保存的任何内容。</string>
 
@@ -210,6 +214,8 @@
     <string name="about_feedback_value">QQ 群 551772286</string>
     <string name="about_feedback_copied">群号已复制：%1$s，在 QQ 里搜索加群</string>
     <string name="about_license">开源许可</string>
+    <string name="about_device_id">设备编号</string>
+    <string name="about_device_copied">设备编号已复制，反馈问题时把它发给作者</string>
     <string name="about_project">项目主页</string>
 
     <!-- 结果与报错：标题本地化，系统原文留在详情行 -->

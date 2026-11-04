@@ -35,6 +35,7 @@ import com.qianxi.simlet.ui.UiPrefs
 import com.qianxi.simlet.ui.screen.AboutScreen
 import com.qianxi.simlet.ui.screen.HomeScreen
 import com.qianxi.simlet.ui.screen.LicenseScreen
+import com.qianxi.simlet.ui.screen.NoticesScreen
 import com.qianxi.simlet.ui.screen.PrivacyScreen
 import com.qianxi.simlet.ui.screen.SettingsScreen
 import com.qianxi.simlet.ui.screen.SetupScreen
@@ -58,7 +59,7 @@ import rikka.shizuku.Shizuku
  * 进它就从右滑入、退它就从左滑回；根层两页同层，没有前后关系，只淡入淡出。
  */
 private enum class Page(val level: Int) {
-    Setup(0), Home(0), Settings(1), About(2), Licenses(3), Privacy(3), Terms(3), Stats(3)
+    Setup(0), Home(0), Settings(1), Notices(1), About(2), Licenses(3), Privacy(3), Terms(3), Stats(3)
 }
 
 /** 公告这条链路和 remote/HubClient 用同一个日志标签，抓 logcat 时一条命令能看全。 */
@@ -96,7 +97,6 @@ class SimletActivity : ComponentActivity() {
 
     private var askedAutomatically = false
     private var reapplyStarted = false
-    private var hubSyncStarted = false
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val permissionResult = Shizuku.OnRequestPermissionResultListener { _, result ->
@@ -148,7 +148,6 @@ class SimletActivity : ComponentActivity() {
 
         syncState()
         askAutomatically()
-        syncHubOnce()
 
         setContent {
             SimletTheme {
@@ -189,7 +188,12 @@ class SimletActivity : ComponentActivity() {
                             }
                         )
 
-                        Page.Home -> HomeScreen(onOpenSettings = { push(Page.Settings) })
+                        Page.Home -> HomeScreen(
+                            onOpenSettings = { push(Page.Settings) },
+                            onOpenNotices = { push(Page.Notices) }
+                        )
+
+                        Page.Notices -> NoticesScreen(onBack = ::pop)
                         Page.Setup -> SetupScreen(
                             stage = stage,
                             onRequestPermission = ::askPermission,
@@ -215,6 +219,11 @@ class SimletActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         syncState()
+        // 「进首页就校验」落在这里：onResume 是每次回到前台都会走的一次，而 onCreate 只在冷启动走。
+        // 公告下线要快，靠的就是这一次；它发的是带 ETag 的条件请求，命中 304 只花一次握手。
+        // 这里不再加「本实例试过没有」的开关：闸门在 prefs 的时间戳上，跨实例也作数，
+        // 而实例级开关恰恰挡不住它想挡的那种情况（系统连续重建两个实例，两边都是新实例）。
+        syncHubOnce()
     }
 
     private fun syncState() {
@@ -258,8 +267,7 @@ class SimletActivity : ComponentActivity() {
      * 每次启动都重试只会让弱网用户多白等一个连接超时。
      */
     private fun syncHubOnce() {
-        if (hubSyncStarted || !HubRules.enabled(BuildConfig.HUB_BASE_URL)) return
-        hubSyncStarted = true
+        if (!HubRules.enabled(BuildConfig.HUB_BASE_URL)) return
         val app = applicationContext
         ioScope.launch {
             val store = RemoteStore.of(app)
@@ -267,10 +275,10 @@ class SimletActivity : ComponentActivity() {
             // 语言取法和设置页那次一致：应用内设置优先，没设置才看系统语言。
             val tag = UiPrefs.of(app).localeTag ?: Locale.getDefault().language
             val lang = HubRules.queryLang(tag)
-            if (HubRules.shouldFetch(store.lastAttemptMs, started, store.bootHours)) {
+            if (HubRules.shouldRevalidate(store.lastAttemptMs, started, store.revalidateMin)) {
                 fetchConfig(store, started, lang)
             } else {
-                Log.d(HUB_TAG, "跳过这趟：距上次尝试不足 ${store.bootHours} 小时")
+                Log.d(HUB_TAG, "跳过这趟：距上次尝试不足 ${store.revalidateMin} 分钟")
             }
             reportBoot(store, lang)
         }

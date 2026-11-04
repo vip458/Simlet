@@ -28,6 +28,7 @@ class RemoteStore private constructor(context: Context) {
 
     private val noticeState = mutableStateOf(readNotice())
     private val releaseState = mutableStateOf(readRelease())
+    private val noticesState = mutableStateOf<List<Notice>?>(null)
     private val statsState = mutableStateOf(store.getBoolean(KEY_STATS, HubRules.DEFAULT_STATS_ON))
 
     /** 缓存里的东西是不是当前这个后台给的。 */
@@ -36,16 +37,37 @@ class RemoteStore private constructor(context: Context) {
     /**
      * 当前该显示的公告。
      *
-     * 两道闸：构建时没配后台地址就一律不显示（本机缓存可能是上一个包留下的，
+     * 三道闸：构建时没配后台地址就一律不显示（本机缓存可能是上一个包留下的，
      * fork 和自构建的「不联网、没有后台特性」不能靠缓存没写进来这件事成立）；
      * 再按「最后一次被后台确认」判过期，后台长期不可达时这条 getter 自己就会变 null，
-     * 不需要额外的清理任务。
+     * 不需要额外的清理任务；最后按公告自带的止期判——这一道完全不碰网络。
      */
     val notice: Notice?
         get() = noticeState.value.takeIf {
             HubRules.enabled(BuildConfig.HUB_BASE_URL) && owned() &&
-                HubRules.noticeLive(store.getLong(KEY_CONFIRMED, 0L), System.currentTimeMillis())
+                HubRules.noticeLive(store.getLong(KEY_CONFIRMED, 0L), System.currentTimeMillis(), it?.expMs ?: 0L)
         }
+
+    /**
+     * 历史公告列表。
+     *
+     * 只在内存里，不落盘：列表页是用户主动点开的，每次进去重新拉一次，命中 304 只花一次握手；
+     * 存进 prefs 反而多出一份「和后台第几代对不上」的缓存要管，而它省下的那次请求本来就是免费的。
+     *
+     * 拉失败时返回 null，界面退回显示 [notice] 那一条——不是报错，也不是空白。
+     */
+    val notices: List<Notice>?
+        get() = noticesState.value?.takeIf {
+            HubRules.enabled(BuildConfig.HUB_BASE_URL) && owned()
+        }
+
+    /** 列表端点的 ETag。和 bootstrap 的各存各的：两个 URL 的正文不是一回事，串用会收到假的 304。 */
+    val noticesEtag: String? get() = store.getString(KEY_NOTICES_ETAG, null)?.takeIf { it.isNotBlank() && owned() }
+
+    fun applyNotices(items: List<Notice>, newEtag: String?) {
+        if (newEtag != null) store.edit().putString(KEY_NOTICES_ETAG, newEtag).apply()
+        noticesState.value = items
+    }
 
     /**
      * 后台登记的版本，用于「检查更新」和首页的重要更新提示。
@@ -133,9 +155,10 @@ class RemoteStore private constructor(context: Context) {
 
     val lastAttemptMs: Long get() = store.getLong(KEY_ATTEMPT, 0L)
 
-    val bootHours: Int get() = store.getInt(KEY_BOOT_H, HubRules.DEFAULT_BOOT_HOURS)
+    /** 公告复验间隔（分钟）。后台没答过话时按默认值，和后台的默认值是同一个数。 */
+    val revalidateMin: Int get() = HubRules.minutes(store.getInt(KEY_REVALIDATE_M, HubRules.DEFAULT_REVALIDATE_MIN))
 
-    val reportHours: Int get() = store.getInt(KEY_REPORT_H, HubRules.DEFAULT_BOOT_HOURS)
+    val reportHours: Int get() = store.getInt(KEY_REPORT_H, HubRules.DEFAULT_REPORT_HOURS)
 
     val lastReportMs: Long get() = store.getLong(KEY_REPORT, 0L)
 
@@ -145,17 +168,21 @@ class RemoteStore private constructor(context: Context) {
     /**
      * 收到 200。
      *
-     * 采集策略三项一起落：`bm`/`rp` 是两条链路的间隔，`on` 是熔断位。
+     * 采集策略三项一起落：`bv` 是公告复验间隔，`rp` 是上报间隔，`on` 是熔断位。
      * 存下来是为了「这一趟不重试」——后台宕了或者被人关了的时候，客户端不该每次启动都再问一遍。
+     *
+     * 公告为空时连止期一起删掉：留着上一次的止期，下一条没有止期的公告会被它误杀。
      */
     fun apply(config: HubConfig, newEtag: String?, nowMs: Long) {
         val notice = config.notice
         val release = config.release
+        // 在赋值之前取旧 id：赋完再比，两边永远是同一个值，这条判断就成了永远不成立的死代码。
+        val previousId = noticeState.value?.id
         store.edit().apply {
             putLong(KEY_CONFIRMED, nowMs)
             putLong(KEY_ATTEMPT, nowMs)
             putString(KEY_ORIGIN, hubOrigin.orEmpty())
-            putInt(KEY_BOOT_H, HubRules.hours(config.policy.bootHours).toInt())
+            putInt(KEY_REVALIDATE_M, HubRules.minutes(config.policy.revalidateMin))
             putInt(KEY_REPORT_H, HubRules.hours(config.policy.reportHours).toInt())
             putBoolean(KEY_POLICY_ON, config.policy.statsOn)
             if (newEtag != null) putString(KEY_ETAG, newEtag)
@@ -165,12 +192,14 @@ class RemoteStore private constructor(context: Context) {
                 remove(KEY_BD)
                 remove(KEY_UR)
                 remove(KEY_LV)
+                remove(KEY_EXP)
             } else {
                 putInt(KEY_ID, notice.id)
                 putString(KEY_TI, notice.title)
                 putString(KEY_BD, notice.body)
                 putString(KEY_UR, notice.url)
                 putString(KEY_LV, notice.level)
+                putLong(KEY_EXP, notice.expMs)
             }
             if (release == null) {
                 remove(KEY_REL)
@@ -180,6 +209,9 @@ class RemoteStore private constructor(context: Context) {
         }.apply()
         noticeState.value = notice
         releaseState.value = release
+        // 公告换了一条，内存里的历史列表就不再作数：下一次进列表页重新拉，
+        // 而不是把上一代的列表当成最新的显示下去。
+        if (previousId != notice?.id) noticesState.value = null
     }
 
     /**
@@ -219,7 +251,8 @@ class RemoteStore private constructor(context: Context) {
             title = title,
             body = store.getString(KEY_BD, "").orEmpty(),
             url = store.getString(KEY_UR, "").orEmpty(),
-            level = store.getString(KEY_LV, "info").orEmpty()
+            level = store.getString(KEY_LV, "info").orEmpty(),
+            expMs = store.getLong(KEY_EXP, 0L)
         )
     }
 
@@ -227,9 +260,10 @@ class RemoteStore private constructor(context: Context) {
         private const val PREFS = "simlet_remote"
         private const val KEY_ORIGIN = "hub_origin"
         private const val KEY_ETAG = "hub_etag"
+        private const val KEY_NOTICES_ETAG = "hub_notices_etag"
         private const val KEY_ATTEMPT = "hub_attempt"
         private const val KEY_CONFIRMED = "hub_confirmed"
-        private const val KEY_BOOT_H = "hub_boot_h"
+        private const val KEY_REVALIDATE_M = "hub_boot_min"
         private const val KEY_REPORT = "hub_report"
         private const val KEY_REPORT_H = "hub_report_h"
         private const val KEY_POLICY_ON = "hub_policy_on"
@@ -244,6 +278,7 @@ class RemoteStore private constructor(context: Context) {
         private const val KEY_BD = "notice_body"
         private const val KEY_UR = "notice_url"
         private const val KEY_LV = "notice_level"
+        private const val KEY_EXP = "notice_exp_ms"
 
         /** 16 字节随机数写成 32 位十六进制：和将来上报用的匿名设备 ID 同一个形状，但两者互不相干。 */
         private fun newSeed(): String {

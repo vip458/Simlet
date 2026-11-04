@@ -104,6 +104,10 @@
     <string name="notice_level_warn">Heads-up</string>
     <string name="notice_level_alert">Important</string>
     <string name="notice_open_link">View details</string>
+    <string name="notices_title">Notices</string>
+    <string name="notices_empty">No notices yet.</string>
+    <string name="notices_offline">Withdrawn</string>
+    <string name="notices_failed">The server could not be reached; the list above is what this device has stored.</string>
 
     <!-- 统计开关：只有构建时配了自建后台地址才会出现这一行 -->
     <string name="settings_stats">Share anonymous usage stats</string>
@@ -160,7 +164,7 @@
     <string name="privacy_h3">Where your data lives</string>
     <string name="privacy_b3">Slot, country code and the name you set stay in this app\'s private directory. Nothing is uploaded or backed up to a cloud; uninstalling clears it.</string>
     <string name="privacy_h4">When it touches the network</string>
-    <string name="privacy_b4">The update check when you tap it; notices at most once a day; one anonymous usage record a day, which you can turn off. Nothing else makes a request — no analytics, no ads, no log upload.</string>
+    <string name="privacy_b4">The update check when you tap it; a notice re-check at most every half hour, which costs one connection when nothing changed; one anonymous usage record a day, which you can turn off. Nothing else makes a request — no analytics, no ads, no log upload.</string>
     <string name="privacy_h5">Never collected</string>
     <string name="privacy_b5">Phone number, IMSI, ICCID, hardware serial, location, accounts, advertising identifiers, and anything you type or save.</string>
 
@@ -208,6 +212,8 @@
     <string name="about_feedback_value">QQ group 551772286</string>
     <string name="about_feedback_copied">Group number copied: %1$s. Paste it into QQ\'s search box to join.</string>
     <string name="about_license">License</string>
+    <string name="about_device_id">Device ID</string>
+    <string name="about_device_copied">Device ID copied — send it along when you report a bug</string>
     <string name="about_project">Project page</string>
 
     <!-- 结果与报错 -->
