@@ -89,6 +89,41 @@ class HubRulesTest {
     }
 
     @Test
+    fun `下载地址只收 https，公网 http 与别的 scheme 一律不下`() {
+        assertNotNull(HubRules.packageUrl("https://github.com/vip458/Simlet/releases/download/v1.0.3/app-release.apk"))
+        // 明文下一个 APK：链路中间多一个 MITM，换出来的包直接进系统安装器。
+        assertNull(HubRules.packageUrl("http://github.com/vip458/Simlet/app-release.apk"))
+        // 后台被改掉以后这串字符不再是「一个网页地址」，而是「读哪个文件」。
+        assertNull(HubRules.packageUrl("file:///sdcard/Download/evil.apk"))
+        assertNull(HubRules.packageUrl("content://media/external.apk"))
+        assertNull(HubRules.packageUrl("jar:https://x/y!app.apk"))
+        assertNull(HubRules.packageUrl(""))
+        assertNull(HubRules.packageUrl("   "))
+        assertNull(HubRules.packageUrl("不是地址"))
+        // 联调例外和 endpoint() 同一套：adb reverse 与模拟器宿主机都不出网卡。
+        assertNotNull(HubRules.packageUrl("http://127.0.0.1:8642/app.apk"))
+        assertNotNull(HubRules.packageUrl("http://10.0.2.2:8642/app.apk"))
+        assertNull(HubRules.packageUrl("http://127.1.2.3:8642/app.apk"))
+    }
+
+    @Test
+    fun `给人看的链接允许 http，但只允许网页`() {
+        // 网盘镜像常年是 http，这一条锁死 https 会让「打开镜像」变成静默无响应。
+        assertEquals("http://pan.example/s/abc", HubRules.webUrl("http://pan.example/s/abc"))
+        assertEquals("https://pan.example/s/abc", HubRules.webUrl("https://pan.example/s/abc"))
+        // intent:// 交给 ACTION_VIEW 会去拉起别的组件，tel:/sms: 会拨号或发短信，
+        // file:// 能把本机任意路径交给能处理该 MIME 的应用。这三种都不是「打开一个网页」。
+        assertNull(HubRules.webUrl("intent://scan/#Intent;scheme=zxing;end"))
+        assertNull(HubRules.webUrl("file:///data/data/com.qianxi.simlet/shared_prefs/simlet_remote.xml"))
+        assertNull(HubRules.webUrl("tel:10086"))
+        assertNull(HubRules.webUrl("sms:10086?body=x"))
+        assertNull(HubRules.webUrl("content://contacts/people/1"))
+        assertNull(HubRules.webUrl("javascript:alert(1)"))
+        assertNull(HubRules.webUrl("pan.example.com"))
+        assertNull(HubRules.webUrl(""))
+    }
+
+    @Test
     fun `语言只分中英，其它按中文取`() {
         assertEquals("en", HubRules.queryLang("en"))
         assertEquals("en", HubRules.queryLang("en-US"))
@@ -298,6 +333,29 @@ class HubRulesTest {
         // 和 GET 用的是同一套间隔语义，所以 0 和超界值同样被钳在 1~720 小时。
         assertFalse(HubRules.reportWanted(true, true, now - 10 * 60_000L, now, 0))
         assertTrue(HubRules.reportWanted(true, true, now - 2 * hour, now, 0))
+    }
+
+    @Test
+    fun `脏 id 与脏时间戳不会把公告触达打死`() {
+        // id 进的是「打扰名额」的记账（按最大值比较）：一条 id=Int.MAX 的脏数据能让
+        // 之后所有真公告永远不弹、永远不进通知栏，而界面上一个原因都看不出来。
+        // 时间戳 *1000 溢出会绕成负数，那条公告于是变成「永久过期」。
+        val items = parseNoticeList(
+            """{"v":1,"n":[
+                {"id":2147483647,"ti":"顶格","ex":9223372036854775,"at":-5},
+                {"id":-3,"ti":"负数"}
+            ]}"""
+        )
+        assertNotNull(items)
+        assertEquals(2, items!!.size)
+        assertEquals(1_000_000_000, items[0].id)
+        assertEquals(0L, items[0].expMs)
+        assertEquals(0L, items[0].pubMs)
+        assertEquals(0, items[1].id)
+        // 正常的一条不受牵连：公元 2100 年之内照原样换毫秒。
+        val sane = parseNoticeList("""{"v":1,"n":[{"id":12,"ti":"正常","at":1762000000}]}""")!!
+        assertEquals(12, sane[0].id)
+        assertEquals(1762000000_000L, sane[0].pubMs)
     }
 
     private fun release(

@@ -79,9 +79,16 @@ object ShizukuLink {
         runCatching { Shizuku.removeBinderReceivedListener(listener) }
     }
 
-    /** 以 shell 身份跑一条命令并收集 stdout / stderr。 */
-    fun exec(vararg command: String): ShellOutput {
-        val process = newShellProcess(arrayOf("sh", "-c", command.joinToString(" ")))
+    /**
+     * 以 shell 身份跑一条命令并收集 stdout / stderr。
+     *
+     * 参数是**一整条命令行**，原样交给 `sh -c`：管道、`;`、反引号、`$()` 全按 shell 的意思解释。
+     * 所以调用方只能传写死的常量。把任何外部读来的值（卡名、属性、后台下发的字符串）
+     * 插进来就等于把这条命令的其余部分交给那个值决定，而这一步的权限是 shell UID。
+     * 签名收单个 String 而不是 vararg，是为了不再有「拼参数」这种看起来像在做转义的写法。
+     */
+    fun exec(command: String): ShellOutput {
+        val process = newShellProcess(arrayOf("sh", "-c", command))
         val out = StringBuilder()
         val err = StringBuilder()
         val readers = listOf(

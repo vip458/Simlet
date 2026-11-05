@@ -2,7 +2,6 @@ package com.qianxi.simlet.core
 
 import android.content.Context
 import android.os.PersistableBundle
-import android.util.Log
 import com.qianxi.simlet.model.OverridePlan
 import com.qianxi.simlet.model.SimSlot
 
@@ -22,7 +21,7 @@ object OverrideWriter {
         val appContext = context.applicationContext
         val bundle = plan.toBundle().takeIf { !plan.empty }
         var lastError: Throwable? = null
-        Log.i(TAG, "写入 slot=${slot.slotIndex} sub=${slot.subscriptionId} plan=$plan")
+        AppLog.i(TAG, "写入 slot=${slot.slotIndex} sub=${slot.subscriptionId} plan=$plan")
 
         val attempts = listOf(
             "通道一" to { directLoaderWrite(appContext, slot, bundle, plan) },
@@ -33,11 +32,11 @@ object OverrideWriter {
         for ((name, attempt) in attempts) {
             runCatching(attempt)
                 .onSuccess {
-                    Log.i(TAG, "$name 写入生效")
+                    AppLog.i(TAG, "$name 写入生效")
                     return Result.success(Unit)
                 }
                 .onFailure { error ->
-                    Log.d(TAG, "$name 失败: ${error.message}")
+                    AppLog.d(TAG, "$name 失败: ${error.message}")
                     lastError = error
                 }
         }
@@ -55,7 +54,7 @@ object OverrideWriter {
         val appContext = context.applicationContext
         val nativeIso = SlotReader.nativeCountryIso(slot.slotIndex, slot.subscriptionId)
         val effective = slot.effectiveCountryIso?.lowercase()
-        Log.i(TAG, "还原 slot=${slot.slotIndex} sub=${slot.subscriptionId} 系统读到=$effective 真实=$nativeIso")
+        AppLog.i(TAG, "还原 slot=${slot.slotIndex} sub=${slot.subscriptionId} 系统读到=$effective 真实=$nativeIso")
         // 只要系统读到的还是旧国家码就补一次写入（覆盖已清空但派生值卡住的情况也要能修好）
         if (nativeIso != null && effective != null && effective != nativeIso) {
             val recomputed = apply(appContext, slot, OverridePlan(countryIso = nativeIso))

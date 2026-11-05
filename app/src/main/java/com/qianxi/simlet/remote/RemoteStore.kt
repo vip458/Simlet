@@ -187,6 +187,18 @@ class RemoteStore private constructor(context: Context) {
             store.edit().putInt(KEY_NOTIFIED, value).apply()
         }
 
+    /**
+     * 通知栏那条通知的点击凭据。空 = 现在没有能点的通知。
+     *
+     * 挂通知时生成、点进来时对一次并用完即废。它只用来挡住本机别的应用伪造同一条 intent，
+     * 不是身份，也不上送，所以没必要持久到下一次启动以后——通知本身在重启后也早就没了。
+     */
+    var noticeTapToken: String
+        get() = if (noticeNotifiedId > 0) store.getString(KEY_TAP, "").orEmpty() else ""
+        set(value) {
+            store.edit().putString(KEY_TAP, value).apply()
+        }
+
     /** 上次拿到的 ETag；只对当前这个后台有效，换了地址就当没拿到过。 */
     val etag: String? get() = store.getString(KEY_ETAG, null)?.takeIf { it.isNotBlank() && owned() }
 
@@ -328,6 +340,7 @@ class RemoteStore private constructor(context: Context) {
         // 键名沿用装了弹窗那版写下的 `notice_popped_id`：改名会让已弹过的那条在升级后再弹一次。
         private const val KEY_ATTENTION = "notice_popped_id"
         private const val KEY_NOTIFIED = "notice_notified_id"
+        private const val KEY_TAP = "notice_tap_token"
         private const val KEY_ID = "notice_id"
         private const val KEY_TI = "notice_title"
         private const val KEY_BD = "notice_body"
@@ -342,6 +355,9 @@ class RemoteStore private constructor(context: Context) {
             SecureRandom().nextBytes(bytes)
             return bytes.joinToString("") { "%02x".format(it) }
         }
+
+        /** 挂一次通知要用的点击凭据。和 [newSeed] 同一个形状，但每挂一次重新抽，用完就作废。 */
+        fun newTapToken(): String = newSeed()
 
         @Volatile
         private var instance: RemoteStore? = null

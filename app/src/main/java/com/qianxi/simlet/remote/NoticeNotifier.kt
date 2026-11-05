@@ -54,13 +54,19 @@ object NoticeNotifier {
      *
      * 正文那一行放标题，不放公告正文：标题是后台写的、限长 40 字的那一句，本来就是给人扫一眼的；
      * 正文长短不一，塞进通知栏要么被截要么占满一屏，而点开就是完整弹窗，没必要在这里读完。
+     *
+     * intent 里跟着一个一次性凭据：首页 Activity 是导出的（桌面图标就靠它），
+     * 任何本机应用都能自己 `startActivity` 塞一个公告 id 进去，等于替后台弹窗。
+     * 这个数只在发通知的这一行生成、只存本机，点进来时不匹配就当没这回事。
      */
     fun show(context: Context, store: RemoteStore, notice: Notice) {
         val manager = NotificationManagerCompat.from(context)
         ensureChannel(context)
+        val token = RemoteStore.newTapToken()
         val intent = Intent(context, SimletActivity::class.java)
             .setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .putExtra(SimletActivity.EXTRA_NOTICE_ID, notice.id)
+            .putExtra(SimletActivity.EXTRA_NOTICE_TOKEN, token)
         val tap = PendingIntent.getActivity(
             context, BAR_ID, intent,
             // 12 起必须点名可变性，不点名构建期就被拦下。
@@ -75,12 +81,16 @@ object NoticeNotifier {
             .setOnlyAlertOnce(true)
             .build()
         runCatching { manager.notify(BAR_ID, built) }
-            .onSuccess { store.noticeNotifiedId = notice.id }
+            .onSuccess {
+                store.noticeNotifiedId = notice.id
+                store.noticeTapToken = token
+            }
     }
 
     /** 撤下来。没有挂着的东西时什么都不做。 */
     fun dismiss(context: Context, store: RemoteStore) {
         val notified = store.noticeNotifiedId
+        store.noticeTapToken = ""
         if (notified <= 0) return
         store.noticeNotifiedId = 0
         NotificationManagerCompat.from(context).cancel(BAR_ID)

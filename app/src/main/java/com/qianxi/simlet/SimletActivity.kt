@@ -8,7 +8,6 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -29,6 +28,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
+import com.qianxi.simlet.core.AppLog
 import com.qianxi.simlet.core.HiddenAccess
 import com.qianxi.simlet.core.PlanStore
 import com.qianxi.simlet.core.ShizukuLink
@@ -271,13 +271,21 @@ class SimletActivity : ComponentActivity() {
      * 不然下次比对会去撤一条早就不在的），和那个红点——他人已经在这条公告面前了。
      *
      * 这条已经不生效（换过了、下线了、本机判过期了）就不编一个弹窗出来，正常落到界面。
+     *
+     * 凭据对不上也一样不弹——那种 intent 不是通知栏按的，是本机别的应用自己拼出来的。
      */
     private fun showNoticeFromIntent(intent: Intent?) {
         val id = intent?.getIntExtra(EXTRA_NOTICE_ID, 0) ?: return
         if (id <= 0) return
+        val token = intent.getStringExtra(EXTRA_NOTICE_TOKEN).orEmpty()
         // 取走就抹掉：转屏重建 Activity 时读的还是同一个 Intent，不抹会再弹一次。
         intent.removeExtra(EXTRA_NOTICE_ID)
+        intent.removeExtra(EXTRA_NOTICE_TOKEN)
         val store = RemoteStore.of(this)
+        // 只认发通知那次写进本机缓存的那一个数，且用完即废。
+        // 首页 Activity 是导出的（桌面图标要用），本机任何应用都能 startActivity
+        // 并塞一个公告 id 进来，替后台把弹窗按到用户脸上；id 本身没有秘密，只有这个随机数是。
+        if (token.isEmpty() || token != store.noticeTapToken) return
         NoticeNotifier.dismiss(this, store)
         val notice = store.notice?.takeIf { it.id == id } ?: return
         store.markNoticeSeen(id)
@@ -379,7 +387,7 @@ class SimletActivity : ComponentActivity() {
             if (HubRules.shouldRevalidate(store.lastAttemptMs, started, store.revalidateMin)) {
                 fetchConfig(store, started, lang)
             } else {
-                Log.d(HUB_TAG, "跳过这趟：距上次尝试不足 ${store.revalidateMin} 分钟")
+                AppLog.d(HUB_TAG, "跳过这趟：距上次尝试不足 ${store.revalidateMin} 分钟")
             }
             reportBoot(store, lang)
         }
@@ -401,7 +409,7 @@ class SimletActivity : ComponentActivity() {
             when (outcome) {
                 is HubOutcome.Updated -> {
                     store.apply(outcome.config, outcome.etag, at)
-                    Log.i(HUB_TAG, "公告已更新 id=${outcome.config.notice?.id ?: -1}")
+                    AppLog.i(HUB_TAG, "公告已更新 id=${outcome.config.notice?.id ?: -1}")
                 }
 
                 HubOutcome.Cached -> store.markAttempt(at, confirmed = true)
@@ -431,7 +439,7 @@ class SimletActivity : ComponentActivity() {
         if (!NoticeNotifier.allowed(this)) return
         if (store.takeNoticeAttention(live) != null) {
             NoticeNotifier.show(this, store, live)
-            Log.i(HUB_TAG, "公告已挂进通知栏 id=${live.id}")
+            AppLog.i(HUB_TAG, "公告已挂进通知栏 id=${live.id}")
         }
     }
 
@@ -446,11 +454,11 @@ class SimletActivity : ComponentActivity() {
         // 两个挡住的原因分开记：用户报「我关了统计它还在发」时，这一行日志能直接分清是开关没生效
         // 还是只是没到间隔——隔着反馈猜是猜不出来的。
         if (!store.statsOn) {
-            Log.d(HUB_TAG, "统计开关已关，不发上报")
+            AppLog.d(HUB_TAG, "统计开关已关，不发上报")
             return
         }
         if (!HubRules.reportWanted(true, store.policyOn, store.lastReportMs, now, store.reportHours)) {
-            Log.d(HUB_TAG, "这条上报不发：后台熔断或距上次上报不足 ${store.reportHours} 小时")
+            AppLog.d(HUB_TAG, "这条上报不发：后台熔断或距上次上报不足 ${store.reportHours} 小时")
             return
         }
         store.markReport(now)
@@ -497,6 +505,9 @@ class SimletActivity : ComponentActivity() {
 
         /** 通知栏带进来的那一条公告。给 NoticeNotifier 和这里读同一个键，别各写一个字符串。 */
         const val EXTRA_NOTICE_ID = "simlet.notice_id"
+
+        /** 随公告 id 一起的一次性凭据，由 [com.qianxi.simlet.remote.NoticeNotifier.show] 生成。 */
+        const val EXTRA_NOTICE_TOKEN = "simlet.notice_token"
 
         /** 授权结果快过这个时刻就当「窗没弹出来」：人读一句话再点一下不可能短于一秒。 */
         private const val NO_DIALOG_MS = 1_000L

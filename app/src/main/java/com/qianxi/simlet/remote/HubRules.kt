@@ -67,6 +67,45 @@ object HubRules {
         origin(base)?.let { URL(it.trimEnd('/') + path) }
 
     /**
+     * 后台/发布页给的下载地址能不能直接拿去下 APK。
+     *
+     * 这一条原来没有：`ap` 字段是后台下发的一串字符，客户端拿它 `URL(url).openConnection()`，
+     * 于是 `http://` 照连（明文信道上下一个 APK，链路中间多一个 MITM 面），
+     * 而 `file://`、`content://` 这类根本不该出现在下载里的 scheme 也能进去。
+     * 后台被入侵或被改口令之后，这一条就是「官方更新通道投递任意包」的入口。
+     *
+     * 口径和 [endpoint] 一致：只允许 https，本机回环例外（`adb reverse` 联调时流量不出网卡）。
+     * 302 跳转后要用同一句话再判一次——GitHub 的 release 资产本来就是跳转出去的，
+     * 放开自动跟随就等于放开「第一跳合规、第二跳随便」。
+     */
+    fun packageUrl(raw: String): URL? = httpUrl(raw, requireHttps = true)
+
+    /**
+     * 给人看的链接（公告「查看详情」、发布页、网盘镜像）允许不允许打开。
+     *
+     * 这里不锁 https，也不锁域名：网盘镜像的域名谁也列不全，而这一条只是把地址交给系统浏览器，
+     * 明文风险由浏览器自己提示。真正要挡的是 `intent://`、`file://`、`sms:`、`tel:` 这些
+     * ——它们交给 `ACTION_VIEW` 会去拉起别的应用组件甚至拨号，那和「打开一个网页」不是一件事。
+     */
+    fun webUrl(raw: String): String? = httpUrl(raw, requireHttps = false)?.toString()
+
+    private fun httpUrl(raw: String, requireHttps: Boolean): URL? {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return null
+        val url = runCatching { URL(trimmed) }.getOrNull() ?: return null
+        val host = url.host?.lowercase() ?: return null
+        return when (url.protocol?.lowercase()) {
+            "https" -> url
+            "http" -> if (requireHttps) {
+                if (host == "127.0.0.1" || host == "localhost" || host == "10.0.2.2") url else null
+            } else {
+                url
+            }
+            else -> null
+        }
+    }
+
+    /**
      * 语言口径：只分中英，其它一律按中文取。
      *
      * 和后台 `Http::lang()` 是同一套规则——两边不一致的话，德语用户会在服务端落到 zh、

@@ -19,6 +19,8 @@ data class ReleaseInfo(
     val notes: String = "",
     /** 后台标记的重要更新：首页顶部多一条提示，但不拦任何操作。 */
     val critical: Boolean = false,
+    /** 后台声明的包大小（字节）。0 表示没说，下载侧退回硬上限。 */
+    val sizeBytes: Long = 0L,
     val mirror: Mirror? = null
 )
 

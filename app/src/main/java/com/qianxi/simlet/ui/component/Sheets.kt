@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import com.qianxi.simlet.R
 import com.qianxi.simlet.data.OperatorCatalog
 import com.qianxi.simlet.data.RegionCatalog
+import com.qianxi.simlet.model.OverridePlan
 import com.qianxi.simlet.ui.englishUi
 import dev.reicon.Search
 
@@ -192,7 +193,12 @@ private fun CustomRegionField(onApply: (String?) -> Unit) {
     )
 }
 
-/** 运营商名称没有格式要求，所以那一格不给提示。 */
+/**
+ * 运营商名称没有格式要求，所以那一格不给提示。
+ *
+ * 输入时就按写进系统的那一档截掉：粘贴进来几百字的人本该在敲下去的那一刻看见它变短，
+ * 而不是点完「应用」之后状态栏上出现一个被切过的名字。
+ */
 @Composable
 private fun CustomOperatorField(onApply: (String) -> Unit) {
     var draft by rememberSaveable { mutableStateOf("") }
@@ -200,7 +206,7 @@ private fun CustomOperatorField(onApply: (String) -> Unit) {
 
     CustomApplyField(
         value = draft,
-        onValueChange = { draft = it },
+        onValueChange = { draft = it.take(OverridePlan.MAX_CARRIER_NAME) },
         placeholder = stringResource(R.string.sheet_custom_name),
         hint = null,
         hintEmphasized = false,

@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
+import com.qianxi.simlet.remote.HubRules
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -13,44 +14,89 @@ import java.net.URL
 /**
  * 下载升级包并拉起系统安装器。
  *
- * 包放在应用外部私有目录而不是 cacheDir：系统缓存清理可能在校验/安装之前把包删掉。
+ * 包落在应用内部存储（filesDir）而不是外部私有目录：Android 10 及以下，持有传统存储权限的
+ * 同机应用能读写 `/sdcard/Android/data/<包名>/files/…`，于是「下载完成 → 点安装」之间
+ * 那几秒足够它把 simlet-latest.apk 换成别的东西。内部存储没有这条路。
  */
 object ApkInstaller {
 
     private const val FILE_NAME = "simlet-latest.apk"
 
-    private fun updatesDir(context: Context): File =
-        File(context.getExternalFilesDir(null), "updates").apply { mkdirs() }
+    /** 跳转次数上限。GitHub 的 release 资产一般一到两跳，给到五跳是余量。 */
+    private const val MAX_HOPS = 5
 
-    /** 同步下载，调用方负责放到 IO 线程；进度回调 0–100，未知总长时不回调。 */
-    fun download(context: Context, url: String, onProgress: (Int) -> Unit): Result<File> = runCatching {
-        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 10_000
-            readTimeout = 20_000
-            instanceFollowRedirects = true
-        }
-        try {
-            val code = connection.responseCode
-            if (code !in 200..299) error("HTTP $code")
-            val total = connection.contentLength.toLong().takeIf { it > 0 } ?: -1L
+    /** 后台没声明包大小时的硬上限：正常包 1.4MB 左右，20MB 已经不是这个项目的产物。 */
+    private const val MAX_BYTES = 20L * 1024 * 1024
+
+    private fun updatesDir(context: Context): File =
+        File(context.filesDir, "updates").apply { mkdirs() }
+
+    /**
+     * 同步下载，调用方负责放到 IO 线程；进度回调 0–100，未知总长时不回调。
+     *
+     * @param declaredBytes 后台声明的包大小（`sz`），非正数时按 [MAX_BYTES] 兜底。
+     */
+    fun download(context: Context, url: String, declaredBytes: Long, onProgress: (Int) -> Unit): Result<File> =
+        runCatching {
+            val limit = if (declaredBytes > 0L) declaredBytes else MAX_BYTES
             val target = File(updatesDir(context), FILE_NAME)
-            connection.inputStream.use { input ->
-                target.outputStream().use { output ->
-                    val buffer = ByteArray(64 * 1024)
-                    var written = 0L
-                    while (true) {
-                        val read = input.read(buffer)
-                        if (read < 0) break
-                        output.write(buffer, 0, read)
-                        written += read
-                        if (total > 0) onProgress(((written * 100) / total).toInt())
+            // 先落到 .part 再改名：半途而废的文件不该被上一次的成功记录认成「已下载」。
+            val temp = File(target.parentFile, FILE_NAME + ".part")
+            var connection: HttpURLConnection? = null
+            try {
+                connection = openTrusted(url)
+                val code = connection.responseCode
+                if (code !in 200..299) error("HTTP $code")
+                val declared = connection.contentLength.toLong().takeIf { it > 0 } ?: -1L
+                if (declared > limit) error("size-declared-over-limit")
+                connection.inputStream.use { input ->
+                    temp.outputStream().use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        var written = 0L
+                        while (true) {
+                            val read = input.read(buffer)
+                            if (read < 0) break
+                            written += read
+                            // 声明值只说明对方「打算」发多少；真正保住磁盘的是这里逐块累加的实测值。
+                            if (written > limit) error("size-over-limit")
+                            output.write(buffer, 0, read)
+                            if (declared > 0) onProgress(((written * 100) / declared).toInt())
+                        }
                     }
                 }
+                if (!temp.renameTo(target)) error("rename-failed")
+                target
+            } finally {
+                connection?.disconnect()
+                runCatching { temp.delete() }
             }
-            target
-        } finally {
-            connection.disconnect()
         }
+
+    /**
+     * 按 [HubRules.packageUrl] 的口径打开连接，并自己跟随跳转。
+     *
+     * 自动跟随（instanceFollowRedirects）在这里不能用：跳转目标不再经过任何检查，
+     * 一个合规的 https 第一跳就能把人带到明文或者别的 scheme 上去。
+     */
+    private fun openTrusted(url: String): HttpURLConnection {
+        var current = HubRules.packageUrl(url) ?: error("url-rejected")
+        repeat(MAX_HOPS) {
+            val connection = (current.openConnection() as HttpURLConnection).apply {
+                connectTimeout = 10_000
+                readTimeout = 20_000
+                instanceFollowRedirects = false
+            }
+            val code = connection.responseCode
+            if (code in 300..399) {
+                val location = connection.getHeaderField("Location")
+                connection.disconnect()
+                if (location.isNullOrBlank()) error("redirect-no-location")
+                current = HubRules.packageUrl(URL(current, location).toString()) ?: error("redirect-rejected")
+            } else {
+                return connection
+            }
+        }
+        error("too-many-redirects")
     }
 
     fun canInstall(context: Context): Boolean =

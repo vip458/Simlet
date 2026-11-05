@@ -101,7 +101,7 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
         _state.value = UpdateState.Downloading(0)
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) {
-                ApkInstaller.download(getApplication(), url) { percent ->
+                ApkInstaller.download(getApplication(), url, release.sizeBytes) { percent ->
                     _state.value = UpdateState.Downloading(percent)
                 }
             }
@@ -139,6 +139,7 @@ private fun HubRelease.asReleaseInfo(): ReleaseInfo {
         apkUrl = apkUrl.takeIf { it.isNotBlank() },
         notes = notes,
         critical = critical,
+        sizeBytes = sizeBytes.toLong(),
         mirror = mirror
     )
 }

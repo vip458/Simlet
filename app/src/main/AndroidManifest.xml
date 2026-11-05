@@ -33,10 +33,15 @@
             android:name="com.qianxi.simlet.core.SimletOverrideJob"
             android:targetPackage="${applicationId}"/>
 
+    <!--
+      allowBackup=false：README 与隐私页写的口径是「不上传、不同步、不导出，卸载即干净」，
+      开自动备份就和这句话直接冲突——共享偏好里既有用户挑的覆盖方案，也有上报用的匿名设备 ID，
+      前者会被 cloud backup 同步走，后者一同步就变成「换台手机还是同一个人」。
+      整个关掉，而不是「全量 include + 逐文件 exclude」——后者每多一个 prefs 文件就多一个漏排除的地方。
+      换机重新挑一次国家码的代价，比这条承诺被打破小。
+    -->
     <application
-            android:allowBackup="true"
-            android:dataExtractionRules="@xml/data_extraction_rules"
-            android:fullBackupContent="@xml/backup_rules"
+            android:allowBackup="false"
             android:icon="@mipmap/ic_launcher"
             android:label="@string/app_name"
             android:roundIcon="@mipmap/ic_launcher_round"

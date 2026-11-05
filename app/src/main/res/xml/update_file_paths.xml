@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <!-- 与 ApkInstaller.updatesDir 指向同一个目录，改一处要同时改另一处。 -->
-    <external-files-path
+    <!-- 与 ApkInstaller.updatesDir 指向同一个目录，改一处要同时改另一处。
+         这里是内部存储（filesDir）：外部私有目录在 Android 10 及以下可被同机应用改写，
+         「下载完成 → 点安装」之间那几秒就是被人换包的窗口。 -->
+    <files-path
             name="updates"
             path="updates/"/>
 </paths>

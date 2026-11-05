@@ -383,16 +383,31 @@ internal fun parseHubConfig(body: String): HubConfig? = runCatching {
 
 /** 公告的一条。bootstrap 和 notices 两个端点用的是同一个形状，所以解析也只写一处。 */
 internal fun parseNotice(raw: JSONObject): Notice = Notice(
-    id = raw.optInt("id", 0),
+    // id 会被写进「打扰名额」的记账（RemoteStore.takeNoticeAttention 按最大值比较）。
+    // 后台给一个 Int.MAX 的 id，之后所有真公告就永远不弹、不进通知栏，而界面上看不出任何原因。
+    id = raw.optInt("id", 0).coerceIn(0, MAX_NOTICE_ID),
     title = raw.optString("ti"),
     body = raw.optString("bd"),
     url = raw.optString("ur"),
     level = raw.optString("lv", "info"),
-    expMs = raw.optLong("ex", 0L) * 1000L,
-    pubMs = raw.optLong("at", 0L) * 1000L,
+    expMs = epochSecondsToMillis(raw.optLong("ex", 0L)),
+    pubMs = epochSecondsToMillis(raw.optLong("at", 0L)),
     // 只有列表端点会带 on；没带就当生效中，因为 bootstrap 只会下发当前生效的那一条。
     live = raw.optInt("on", 1) != 0
 )
+
+/** 公告 id 的上限。后台自己递增到十亿之前都用不完，用完的是恶意或脏数据。 */
+private const val MAX_NOTICE_ID = 1_000_000_000
+
+/** 公元 2100 年，秒。再大的时间戳不是「很久以后」，是脏数据。 */
+private const val MAX_EPOCH_SECONDS = 4_102_444_800L
+
+/**
+ * 秒转毫秒。`Long.MAX * 1000` 会绕成负数，那条公告于是变成「永久过期」——
+ * 溢出在这里不是崩溃，是一个没人能看出来的错判定，所以在进模型之前先钳住。
+ */
+private fun epochSecondsToMillis(seconds: Long): Long =
+    if (seconds <= 0L || seconds > MAX_EPOCH_SECONDS) 0L else seconds * 1000L
 
 /**
  * 历史公告正文解析。整段包在 runCatching 里：一条脏数据不该让列表页白屏，

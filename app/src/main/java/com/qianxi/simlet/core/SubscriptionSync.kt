@@ -2,7 +2,6 @@ package com.qianxi.simlet.core
 
 import android.content.Context
 import android.telephony.TelephonyManager
-import android.util.Log
 
 /**
  * 状态栏与系统上报的运营商名跟随。
@@ -36,12 +35,12 @@ internal object SubscriptionSync {
             val outcome = runCatching { push(appContext, subscriptionId, expected) }
                 .onFailure { lastError = it }
             if (outcome.isSuccess && followed(subscriptionId, expected)) {
-                Log.i(TAG, "运营商名已跟随 sub=$subscriptionId name=$expected 第${attempt + 1}次")
+                AppLog.i(TAG, "运营商名已跟随 sub=$subscriptionId name=$expected 第${attempt + 1}次")
                 return true
             }
         }
 
-        Log.w(
+        AppLog.w(
             TAG,
             "运营商名暂未跟随 sub=$subscriptionId 期望=$expected " +
                 "实际=${effectiveName(subscriptionId)} 错误=${lastError?.message}"
@@ -75,7 +74,7 @@ internal object SubscriptionSync {
         for ((name, action) in paths) {
             runCatching(action)
                 .onSuccess {
-                    Log.d(TAG, "运营商名走 $name 通道 sub=$subscriptionId")
+                    AppLog.d(TAG, "运营商名走 $name 通道 sub=$subscriptionId")
                     LoaderChannel.notifyChanged(subscriptionId)
                     return
                 }
@@ -83,7 +82,7 @@ internal object SubscriptionSync {
                     // 每条通道的拒绝原因都留痕：机型上通常只有一两条是「不支持」，
                     // 真正的原因往往是权限被拒，只看最后一条会误判。
                     lastError = error
-                    Log.d(TAG, "$name 通道不可用 sub=$subscriptionId: ${error.message}")
+                    AppLog.d(TAG, "$name 通道不可用 sub=$subscriptionId: ${error.message}")
                 }
         }
         throw lastError ?: IllegalStateException("没有可用的运营商名通道")
