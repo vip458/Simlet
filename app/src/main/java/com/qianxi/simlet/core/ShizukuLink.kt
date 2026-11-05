@@ -3,6 +3,7 @@ package com.qianxi.simlet.core
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.IBinder
+import android.os.SystemClock
 import rikka.shizuku.Shizuku
 import rikka.shizuku.ShizukuBinderWrapper
 import java.io.InputStream
@@ -18,11 +19,27 @@ object ShizukuLink {
 
     private val PACKAGES = listOf("moe.shizuku.privileged.api", "moe.shizuku.manager")
 
+    /** 本进程最近一次「刚拿到 binder」的时刻，用来分清授权窗口的两种快拒绝。 */
+    private var attachedAt = 0L
+
     /**
-     * 用 [Shizuku.pingBinder] 而不是直接取缓存的 binder：
-     * 后台写入进程是全新进程，客户端要到这一刻才去解析 binder，读缓存会一直判「未就绪」。
+     * 只读 `Shizuku` 里那个静态字段，不会自己回源。
+     *
+     * 这句是要留着提醒改这里的人：binder 只能由服务端推给本应用声明的 provider
+     * （`com.qianxi.simlet.shizuku`），客户端自己没有拿回来的门路 —— 想主动去问管理器的
+     * `ShizukuManagerProvider` 会被系统挡在 `INTERACT_ACROSS_USERS_FULL` 外面，那是 shell 才有的权限，
+     * 实测在真机上就是 `Permission Denial`。所以这一路只能等推送到，界面上能做的只有按时重读。
      */
     fun binderAlive(): Boolean = runCatching { Shizuku.pingBinder() }.getOrDefault(false)
+
+    /** 刚拿到 binder 的这 3 秒里，服务端可能还没把授权记录读出来，那次的拒绝不能算成人的选择。 */
+    fun attachedRecently(windowMs: Long = 3_000L): Boolean =
+        attachedAt > 0L && SystemClock.elapsedRealtime() - attachedAt < windowMs
+
+    /** 由 binder 到达的回调打点。 */
+    fun markAttached() {
+        attachedAt = SystemClock.elapsedRealtime()
+    }
 
     fun granted(): Boolean = binderAlive() &&
         runCatching { Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED }

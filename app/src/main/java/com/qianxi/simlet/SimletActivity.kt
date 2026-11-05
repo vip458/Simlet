@@ -144,8 +144,16 @@ class SimletActivity : ComponentActivity() {
                     waited >= NO_DIALOG_MS ->
                         Toast.makeText(this, R.string.toast_permission_denied, Toast.LENGTH_LONG).show()
 
-                    permissionAskedManually ->
-                        Toast.makeText(this, R.string.toast_permission_no_dialog, Toast.LENGTH_LONG).show()
+                    permissionAskedManually -> {
+                        // 刚连上那 3 秒里服务端可能还没把授权记录读出来，这一眼的拒绝不是人的选择，
+                        // 也不是弹窗被系统挡；说错方向会让人去翻根本没问题的那个开关。
+                        val reason = if (ShizukuLink.attachedRecently()) {
+                            R.string.toast_permission_warming
+                        } else {
+                            R.string.toast_permission_no_dialog
+                        }
+                        Toast.makeText(this, reason, Toast.LENGTH_LONG).show()
+                    }
                 }
             }
         }
@@ -153,13 +161,22 @@ class SimletActivity : ComponentActivity() {
 
     private val binderReceived = Shizuku.OnBinderReceivedListener {
         runOnUiThread {
+            ShizukuLink.markAttached()
             syncState()
             askAutomatically()
         }
     }
 
+    /**
+     * 服务死了要清掉「这一趟已经自动请求过」这一笔：
+     * 不清的话，服务回来后界面只会显示「需要授权」，而那条本来该自动补发的请求永远发不出去，
+     * 人只能自己去点一次按钮。
+     */
     private val binderDead = Shizuku.OnBinderDeadListener {
-        runOnUiThread { syncState() }
+        runOnUiThread {
+            askedAutomatically = false
+            syncState()
+        }
     }
 
     override fun attachBaseContext(newBase: Context) {
@@ -241,10 +258,7 @@ class SimletActivity : ComponentActivity() {
                         Page.Setup -> SetupScreen(
                             stage = stage,
                             onRequestPermission = ::askPermission,
-                            onRecheck = {
-                                syncState()
-                                askAutomatically()
-                            }
+                            onRecheck = ::recheck
                         )
                     }
                 }
@@ -338,6 +352,17 @@ class SimletActivity : ComponentActivity() {
         } else {
             stage = resolveSetupStage(this)
         }
+    }
+
+    /**
+     * 这一页的「再看一眼」：重读状态，必要时补发一次授权请求。
+     *
+     * 这里做不了更多：binder 只能由服务端推过来，客户端没有回源的门路（见 ShizukuLink 里那段注释），
+     * 所以能做的就是把「要人退出重进才知道」换成「这一页自己每秒看一眼」。
+     */
+    private fun recheck() {
+        syncState()
+        askAutomatically()
     }
 
     private fun askPermission() {

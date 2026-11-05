@@ -74,6 +74,16 @@ fun SetupScreen(
         }
     }
 
+    // 停在这一页时每秒自己再看一眼：服务起来、授权生效这些时刻都不该要人退出重进才知道。
+    // 这一页只在没就绪时存在，进了首页它就被移出组合，循环跟着协程一起停。
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1_000)
+            onRecheck()
+            delegateOk = ShizukuLink.delegateCapable()
+        }
+    }
+
     val (titleRes, detailRes, action) = when (stage) {
         SetupStage.NOT_INSTALLED -> Triple(
             R.string.setup_need_install_title,

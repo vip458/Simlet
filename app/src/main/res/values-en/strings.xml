@@ -58,7 +58,7 @@
     <string name="setup_need_install_title">Shizuku is required</string>
     <string name="setup_need_install_detail">Simlet borrows system permission through Shizuku to change the carrier config. No root, and every change is reversible.</string>
     <string name="setup_service_down_title">Shizuku is not running</string>
-    <string name="setup_service_down_detail">Shizuku is installed on this device. Start it (wireless debugging or adb from a computer), then come back to Simlet.</string>
+    <string name="setup_service_down_detail">Shizuku is installed here. Opening its window is not starting it — press Start on its own home screen, give it a few seconds, and this page will pick it up by itself.</string>
     <string name="setup_permission_title">Shizuku authorization needed</string>
     <string name="setup_permission_detail">The service is already running. Tap the button below, then allow Simlet in the Shizuku permission dialog.</string>
     <string name="setup_old_server_title">Shizuku is too old</string>
@@ -86,6 +86,7 @@
     <string name="toast_permission_denied">Shizuku permission not granted</string>
     <!-- 点了按钮、系统却把 Shizuku 的弹窗拦在门外：这句要说清是谁没让弹，别让人以为是自己的选择 -->
     <string name="toast_permission_no_dialog">Shizuku\'s permission dialog never appeared — allow it to show pop-up windows in system settings</string>
+    <string name="toast_permission_warming">Shizuku just restarted and hasn\'t read the grant state yet — wait two seconds and try again</string>
 
     <!-- 设置 -->
     <string name="settings_title">Settings</string>

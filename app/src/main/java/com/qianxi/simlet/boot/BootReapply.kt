@@ -74,9 +74,15 @@ class BootReapplyService : JobService() {
             while (System.currentTimeMillis() < deadline) {
                 if (ShizukuLink.granted()) return true
                 if (Thread.currentThread().isInterrupted) return false
+                // 带超时的 await 也一样会抛 InterruptedException：onStopJob 就是在这里打断它的。
+                // 让它逃出去等于把整个进程交给默认未捕获处理器杀掉，
+                // 而这条线程本来只是「等一会儿再回写」，没有任何非死不可的理由。
                 latch.await(2_000L, TimeUnit.MILLISECONDS)
             }
             ShizukuLink.granted()
+        } catch (interrupted: InterruptedException) {
+            Thread.currentThread().interrupt()
+            false
         } finally {
             ShizukuLink.removeBinderListener(listener)
         }

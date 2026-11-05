@@ -60,7 +60,7 @@
     <string name="setup_need_install_title">需要安装 Shizuku</string>
     <string name="setup_need_install_detail">Simlet 通过 Shizuku 借取系统权限修改运营商配置，不需要 Root，随时可还原。</string>
     <string name="setup_service_down_title">Shizuku 未运行</string>
-    <string name="setup_service_down_detail">本机已安装 Shizuku，请先启动它（无线调试或电脑 adb 均可），再回到 Simlet。</string>
+    <string name="setup_service_down_detail">本机已安装 Shizuku。只打开它的界面不算启动 —— 要在它首页点「启动」，那一下要等几秒，起来之后回到这里会自动认出来。</string>
     <string name="setup_permission_title">需要 Shizuku 授权</string>
     <string name="setup_permission_detail">服务已在运行。点击下方按钮后，在 Shizuku 的授权弹窗中选择允许。</string>
     <string name="setup_old_server_title">Shizuku 版本过低</string>
@@ -88,6 +88,8 @@
     <string name="toast_permission_denied">未授予 Shizuku 权限</string>
     <!-- 点了按钮、系统却把 Shizuku 的弹窗拦在门外：这句要说清是谁没让弹，别让人以为是自己的选择 -->
     <string name="toast_permission_no_dialog">Shizuku 的授权窗没有弹出：请在系统设置里允许它后台弹出界面</string>
+    <!-- 同样是「一秒内回绝」，服务刚重启那 3 秒里是服务端还没读到授权，不是弹窗被挡，也不是人拒绝 -->
+    <string name="toast_permission_warming">Shizuku 刚重启，还没读到授权状态，等两秒再点一次</string>
 
     <!-- 设置 -->
     <string name="settings_title">设置</string>
