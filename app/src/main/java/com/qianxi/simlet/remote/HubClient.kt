@@ -89,7 +89,9 @@ data class HubRelease(
     val minCode: Int,
     val maxCode: Int,
     val rollout: Int,
-    val salt: String
+    val salt: String,
+    /** 后台登记的包 sha256（`dg`）。空 = 没登记；非空时下载侧算完比对，对不上不装。 */
+    val sha256: String = ""
 )
 
 /**
@@ -435,7 +437,8 @@ internal fun parseRelease(raw: JSONObject): HubRelease = HubRelease(
     minCode = raw.optInt("mi", 0),
     maxCode = raw.optInt("ma", 0),
     rollout = raw.optInt("ro", 100),
-    salt = raw.optString("bk")
+    salt = raw.optString("bk"),
+    sha256 = HubRules.digest(raw.optString("dg"))
 )
 
 /**
@@ -459,3 +462,4 @@ internal fun HubRelease.toJson(): JSONObject = JSONObject()
     .put("ma", maxCode)
     .put("ro", rollout)
     .put("bk", salt)
+    .put("dg", sha256)

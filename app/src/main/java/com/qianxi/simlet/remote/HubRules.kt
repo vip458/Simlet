@@ -89,6 +89,17 @@ object HubRules {
      */
     fun webUrl(raw: String): String? = httpUrl(raw, requireHttps = false)?.toString()
 
+    /** 包摘要该有的形状：64 个小写十六进制。 */
+    val SHA256_PATTERN: Regex = Regex("^[0-9a-f]{64}$")
+
+    /**
+     * 归一化后台下发的 `dg`：只去空白、转小写，形状不对的原样留着。
+     *
+     * 不在这里把它清成空串，是因为「登记错了」要导向「不装」，而不是导向「不校验」。
+     * 形状最终由 `ApkInstaller.digestMatches` 判，那边不匹配就是拒绝。
+     */
+    fun digest(raw: String): String = raw.trim().lowercase()
+
     private fun httpUrl(raw: String, requireHttps: Boolean): URL? {
         val trimmed = raw.trim()
         if (trimmed.isEmpty()) return null

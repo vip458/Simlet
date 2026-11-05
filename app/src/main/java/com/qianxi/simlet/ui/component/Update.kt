@@ -297,7 +297,13 @@ private fun describe(state: UpdateState): Pair<String?, String?> = when (state) 
         stringResource(R.string.update_rate_limited_detail)
 
     is UpdateState.Failed -> stringResource(
-        if (state.whileDownloading) R.string.update_download_failed else R.string.update_failed
+        when {
+            // 校验不通过时包是下全了的，说「下载未完成」会把人往网络那头带，
+            // 而那正是最该看清的时刻：要么后台登记错了，要么这个包被动过。
+            state.reason.startsWith("digest") -> R.string.update_digest_failed
+            state.whileDownloading -> R.string.update_download_failed
+            else -> R.string.update_failed
+        }
     ) to state.reason
 
     is UpdateState.Downloading -> stringResource(R.string.update_downloading, state.percent) to null

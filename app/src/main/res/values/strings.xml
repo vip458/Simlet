@@ -135,6 +135,7 @@
     <string name="update_rate_limited_detail">请求过于频繁，稍后再试</string>
     <string name="update_failed">检查失败</string>
     <string name="update_download_failed">下载未完成</string>
+    <string name="update_digest_failed">包校验不通过，已取消安装</string>
     <string name="update_no_asset">这个版本没有上传安装包，去发布页手动下载</string>
     <string name="update_download">下载升级包</string>
     <string name="update_downloading">下载中 %1$d%%</string>

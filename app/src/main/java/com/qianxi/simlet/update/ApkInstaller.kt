@@ -10,6 +10,7 @@ import com.qianxi.simlet.remote.HubRules
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 
 /**
  * 下载升级包并拉起系统安装器。
@@ -35,8 +36,16 @@ object ApkInstaller {
      * 同步下载，调用方负责放到 IO 线程；进度回调 0–100，未知总长时不回调。
      *
      * @param declaredBytes 后台声明的包大小（`sz`），非正数时按 [MAX_BYTES] 兜底。
+     * @param expectedSha256 后台登记的包摘要（`dg`）。留空就不做落地校验；非空时算出来
+     *   对不上直接丢掉文件——装不上只是麻烦，装错包是把别人的代码写进这台手机。
      */
-    fun download(context: Context, url: String, declaredBytes: Long, onProgress: (Int) -> Unit): Result<File> =
+    fun download(
+        context: Context,
+        url: String,
+        declaredBytes: Long,
+        expectedSha256: String = "",
+        onProgress: (Int) -> Unit
+    ): Result<File> =
         runCatching {
             val limit = if (declaredBytes > 0L) declaredBytes else MAX_BYTES
             val target = File(updatesDir(context), FILE_NAME)
@@ -64,6 +73,9 @@ object ApkInstaller {
                         }
                     }
                 }
+                if (expectedSha256.isNotBlank() && !digestMatches(temp, expectedSha256)) {
+                    error("digest-mismatch")
+                }
                 if (!temp.renameTo(target)) error("rename-failed")
                 target
             } finally {
@@ -71,6 +83,30 @@ object ApkInstaller {
                 runCatching { temp.delete() }
             }
         }
+
+    /**
+     * 实算文件的 sha256 和后台登记的值比一遍。
+     *
+     * 流式读，别整包进内存。期望值形状不对（不是 64 个十六进制）也算不匹配——那说明登记
+     * 的东西本身不可信，宁可不装。
+     */
+    internal fun digestMatches(file: File, expected: String): Boolean {
+        val want = expected.trim().lowercase()
+        if (!HubRules.SHA256_PATTERN.matches(want)) {
+            return false
+        }
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(64 * 1024)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        val got = digest.digest().joinToString("") { (it.toInt() and 0xFF).toString(16).padStart(2, '0') }
+        return got == want
+    }
 
     /**
      * 按 [HubRules.packageUrl] 的口径打开连接，并自己跟随跳转。

@@ -21,6 +21,8 @@ data class ReleaseInfo(
     val critical: Boolean = false,
     /** 后台声明的包大小（字节）。0 表示没说，下载侧退回硬上限。 */
     val sizeBytes: Long = 0L,
+    /** 后台登记的包 sha256（小写十六进制）。空 = 没登记，下载侧不做落地校验。 */
+    val sha256: String = "",
     val mirror: Mirror? = null
 )
 
