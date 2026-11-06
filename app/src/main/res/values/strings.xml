@@ -138,7 +138,7 @@
     <string name="update_failed">检查失败</string>
     <string name="update_download_failed">下载未完成</string>
     <string name="update_digest_failed">包校验不通过，已取消安装</string>
-    <string name="update_no_asset">这个版本没有上传安装包，去发布页手动下载</string>
+    <string name="update_no_asset">这个版本不能在应用里直接下载，去发布页手动下载</string>
     <string name="update_download">下载升级包</string>
     <string name="update_downloading">下载中 %1$d%%</string>
     <string name="update_install">立即安装</string>

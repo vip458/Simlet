@@ -100,6 +100,27 @@ object HubRules {
      */
     fun digest(raw: String): String = raw.trim().lowercase()
 
+    /**
+     * 判新旧这件事只有一句话：**能拿到 versionCode 就只看 versionCode**（后台通道走 [updateWanted]）。
+     *
+     * GitHub 那个接口里没有 versionCode 可用，兜底那条只能拿 release 的名字比 —— 那是没有号时的退路，
+     * 不是第二套标准，所以比较的代码只留这一份，两个通道共用。
+     * 名字按点分数字段比，预发布后缀（`-beta` 这类）先截掉；某一段不是数字就当 0。
+     */
+    fun compareNames(left: String, right: String): Int {
+        val a = left.trim().removePrefix("v").substringBefore('-').split('.')
+        val b = right.trim().removePrefix("v").substringBefore('-').split('.')
+        for (index in 0 until maxOf(a.size, b.size)) {
+            val x = a.getOrNull(index)?.trim()?.toIntOrNull() ?: 0
+            val y = b.getOrNull(index)?.trim()?.toIntOrNull() ?: 0
+            if (x != y) return x.compareTo(y)
+        }
+        return 0
+    }
+
+    /** 摘要登记了没有：形状得是 64 位小写十六进制，缺它就不许走应用内下载（见 [update.ApkInstaller]）。 */
+    fun hasDigest(raw: String): Boolean = SHA256_PATTERN.matches(raw.trim().lowercase())
+
     private fun httpUrl(raw: String, requireHttps: Boolean): URL? {
         val trimmed = raw.trim()
         if (trimmed.isEmpty()) return null

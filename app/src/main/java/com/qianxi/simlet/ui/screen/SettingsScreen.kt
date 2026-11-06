@@ -45,7 +45,7 @@ private const val QQ_GROUP = "551772286"
 /**
  * 点「反馈交流」跳去 QQ 加群。
  *
- * 这里以前放的是 QQ「分享群」那条 universal-share 链接，安全审计（C-L7）指出它的
+ * 这里以前放的是 QQ「分享群」那条 universal-share 链接，它的
  * `busi_data` 是 base64，解出来带群主 uin 和一个 token——把源码公开就等于把这些一起
  * 公开了。现在留空：这一行自动退回「复制群号」，用户自己在 QQ 里按号搜群。
  *

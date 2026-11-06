@@ -26,7 +26,7 @@ object ApkInstaller {
     /** 跳转次数上限。GitHub 的 release 资产一般一到两跳，给到五跳是余量。 */
     private const val MAX_HOPS = 5
 
-    /** 后台没声明包大小时的硬上限：正常包 1.4MB 左右，20MB 已经不是这个项目的产物。 */
+    /** 包大小的天花板：正常包 1.4MB 左右，20MB 已经不是这个项目的产物。后台声明得再大也不越过它。 */
     private const val MAX_BYTES = 20L * 1024 * 1024
 
     private fun updatesDir(context: Context): File =
@@ -35,9 +35,10 @@ object ApkInstaller {
     /**
      * 同步下载，调用方负责放到 IO 线程；进度回调 0–100，未知总长时不回调。
      *
-     * @param declaredBytes 后台声明的包大小（`sz`），非正数时按 [MAX_BYTES] 兜底。
-     * @param expectedSha256 后台登记的包摘要（`dg`）。留空就不做落地校验；非空时算出来
-     *   对不上直接丢掉文件——装不上只是麻烦，装错包是把别人的代码写进这台手机。
+     * @param declaredBytes 后台声明的包大小（`sz`），只用来画进度条；闸门是 [MAX_BYTES]，
+     *   后台把数写大也撑不爆磁盘。
+     * @param expectedSha256 后台登记的包摘要（`dg`）。**必须给**：形状不对或为空就直接拒绝，
+     *   一个字节都不落盘——装不上只是麻烦，装错包是把别人的代码写进这台手机。
      */
     fun download(
         context: Context,
@@ -47,7 +48,9 @@ object ApkInstaller {
         onProgress: (Int) -> Unit
     ): Result<File> =
         runCatching {
-            val limit = if (declaredBytes > 0L) declaredBytes else MAX_BYTES
+            if (!HubRules.hasDigest(expectedSha256)) error("digest-missing")
+            // 声明值只当进度条用，真正的上限永远是硬上限这一头。
+            val limit = if (declaredBytes > 0L) minOf(declaredBytes, MAX_BYTES) else MAX_BYTES
             val target = File(updatesDir(context), FILE_NAME)
             // 先落到 .part 再改名：半途而废的文件不该被上一次的成功记录认成「已下载」。
             val temp = File(target.parentFile, FILE_NAME + ".part")
@@ -73,9 +76,7 @@ object ApkInstaller {
                         }
                     }
                 }
-                if (expectedSha256.isNotBlank() && !digestMatches(temp, expectedSha256)) {
-                    error("digest-mismatch")
-                }
+                if (!digestMatches(temp, expectedSha256)) error("digest-mismatch")
                 if (!temp.renameTo(target)) error("rename-failed")
                 target
             } finally {

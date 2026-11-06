@@ -125,6 +125,9 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
  *
  * 只有填了网盘名和链接才生成 [Mirror]：后台允许只登记 GitHub 一条通道，那种情况下
  * 这一行不该出现，更不该出现一个点了打不开的入口。
+ *
+ * `ap` 给了但 `dg` 没给（或形状不对）时把下载地址清成空 —— 界面会退成「去发布页手动下载」。
+ * 没有摘要就没有可比对的东西，下完直接摆到安装器前面等于闭着眼睛装，这一条不能靠后台自觉。
  */
 private fun HubRelease.asReleaseInfo(): ReleaseInfo {
     val mirror = if (mirrorLabel.isNotBlank() && mirrorUrl.isNotBlank()) {
@@ -136,7 +139,7 @@ private fun HubRelease.asReleaseInfo(): ReleaseInfo {
         tagName = name,
         versionName = name,
         pageUrl = pageUrl,
-        apkUrl = apkUrl.takeIf { it.isNotBlank() },
+        apkUrl = apkUrl.takeIf { it.isNotBlank() && HubRules.hasDigest(sha256) },
         notes = notes,
         critical = critical,
         sizeBytes = sizeBytes.toLong(),

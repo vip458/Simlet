@@ -146,6 +146,12 @@ object HubClient {
     /** 历史列表的服务端上限是 24KB，留一倍余量；再大就不是后台发出来的东西。 */
     private const val NOTICES_MAX_BYTES = 64 * 1024
 
+    /** 跳转次数上限，和 APK 下载侧同一个数。 */
+    private const val MAX_HOPS = 5
+
+    /** 只有这几个状态码是「换个地址再来一次」。304 不算——它就是答案本身，跟着走会把复验当成连不上。 */
+    private val REDIRECT_CODES = setOf(301, 302, 303, 307, 308)
+
     fun fetch(currentEtag: String?, lang: String, versionName: String, versionCode: Int): HubOutcome {
         val target = HubRules.url(BuildConfig.HUB_BASE_URL, PATH + query(lang, versionName, versionCode))
             ?: return HubOutcome.Unreachable
@@ -183,12 +189,46 @@ object HubClient {
         return NoticesOutcome.Updated(items, read.etag)
     }
 
-    /** 两个 GET 共用一次连接建立：超时、编码、ETag 头必须一致，抄两遍迟早会漏一条。 */
-    private fun openGet(target: URL, etag: String?): HttpURLConnection? = runCatching {
+    /**
+     * 两个 GET 共用这一条：超时、编码、ETag 头必须一致，抄两遍迟早会漏一条。
+     *
+     * 跳转自己跟、自己判，口径和更新包下载那条一致：每一跳都重新过 [HubRules.packageUrl]
+     * （只认 https，本机回环例外）。放开自动跟随就等于放开「第一跳合规、第二跳随便」，
+     * 而这条链路上返回什么 JSON 是对方说了算。返回的连接一定不是 3xx，跟不下去时是 null。
+     */
+    private fun openGet(target: URL, etag: String?): HttpURLConnection? {
+        var current = target
+        repeat(MAX_HOPS + 1) {
+            val connection = connect(current, etag) ?: return null
+            val code = runCatching { connection.responseCode }.getOrElse {
+                connection.disconnect()
+                Log.w(TAG, "读状态码失败: ${it.message}")
+                return null
+            }
+            if (code !in REDIRECT_CODES) return connection
+            val from = connection.url
+            val location = connection.getHeaderField("Location")
+            connection.disconnect()
+            if (location.isNullOrBlank()) {
+                Log.w(TAG, "HTTP $code 没给 Location")
+                return null
+            }
+            val next = HubRules.packageUrl(URL(from, location).toString())
+            if (next == null) {
+                Log.w(TAG, "跳转目标不合规，不跟")
+                return null
+            }
+            current = next
+        }
+        Log.w(TAG, "跳转超过 $MAX_HOPS 跳，放弃")
+        return null
+    }
+
+    private fun connect(target: URL, etag: String?): HttpURLConnection? = runCatching {
         (target.openConnection() as HttpURLConnection).apply {
             connectTimeout = TIMEOUT_MS
             readTimeout = TIMEOUT_MS
-            instanceFollowRedirects = true
+            instanceFollowRedirects = false
             requestMethod = "GET"
             setRequestProperty("Accept", "application/json")
             setRequestProperty("Accept-Encoding", "gzip")

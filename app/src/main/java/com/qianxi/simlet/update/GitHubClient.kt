@@ -1,6 +1,6 @@
 package com.qianxi.simlet.update
 
-import org.json.JSONArray
+import com.qianxi.simlet.remote.HubRules
 import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -21,7 +21,7 @@ data class ReleaseInfo(
     val critical: Boolean = false,
     /** 后台声明的包大小（字节）。0 表示没说，下载侧退回硬上限。 */
     val sizeBytes: Long = 0L,
-    /** 后台登记的包 sha256（小写十六进制）。空 = 没登记，下载侧不做落地校验。 */
+    /** 后台登记的包 sha256（小写十六进制）。空 = 没登记，这时不给应用内下载。 */
     val sha256: String = "",
     val mirror: Mirror? = null
 )
@@ -86,40 +86,25 @@ object GitHubClient {
     }
 
     private fun evaluate(body: String, currentVersion: String): CheckOutcome = runCatching {
-        val json = JSONObject(body)
-        val release = parse(json)
+        val release = parse(JSONObject(body))
+        // 这条通道没有 versionCode 可比，才退到按名字比；实现和后台通道共用 HubRules 那一份。
         when {
-            compareVersions(release.versionName, currentVersion) > 0 -> CheckOutcome.Available(release)
+            HubRules.compareNames(release.versionName, currentVersion) > 0 -> CheckOutcome.Available(release)
             else -> CheckOutcome.UpToDate
         }
     }.getOrElse { CheckOutcome.Failed("bad payload: ${it.detailOr("parse")}") }
 
-    private fun parse(json: JSONObject): ReleaseInfo {
-        val tag = json.optString("tag_name")
-        val assets = json.optJSONArray("assets") ?: JSONArray()
-        val apk = (0 until assets.length())
-            .asSequence()
-            .map(assets::getJSONObject)
-            .firstOrNull { it.optString("name").endsWith(".apk") }
-            ?.optString("browser_download_url")
-            ?.takeIf { it.isNotBlank() }
-        return ReleaseInfo(
-            tagName = tag,
-            versionName = tag.removePrefix("v"),
-            pageUrl = json.optString("html_url"),
-            apkUrl = apk
-        )
-    }
-
-    /** 按点分数字段比较；预发布后缀（-beta 等）先截掉再比。 */
-    internal fun compareVersions(left: String, right: String): Int {
-        val a = left.trim().removePrefix("v").substringBefore('-').split('.')
-        val b = right.trim().removePrefix("v").substringBefore('-').split('.')
-        for (index in 0 until maxOf(a.size, b.size)) {
-            val x = a.getOrNull(index)?.trim()?.toIntOrNull() ?: 0
-            val y = b.getOrNull(index)?.trim()?.toIntOrNull() ?: 0
-            if (x != y) return x.compareTo(y)
-        }
-        return 0
-    }
+    /**
+     * 从 Releases 接口的一条记录里取出我们关心的三个字段。
+     *
+     * `apkUrl` 故意留空：GitHub 不公布资产的 sha256，没有可比对的摘要就不该在应用里下包
+     * （[ApkInstaller] 那侧也把这当成硬前提，两边不是巧合）。这一条通道的作用因此变成
+     * 「告诉你线上有哪个新版本」，真要装是把用户交给发布页，由浏览器自己下。
+     */
+    private fun parse(json: JSONObject): ReleaseInfo = ReleaseInfo(
+        tagName = json.optString("tag_name"),
+        versionName = json.optString("tag_name").removePrefix("v"),
+        pageUrl = json.optString("html_url"),
+        apkUrl = null
+    )
 }

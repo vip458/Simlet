@@ -135,7 +135,7 @@
     <string name="update_failed">Check failed</string>
     <string name="update_download_failed">Download did not finish</string>
     <string name="update_digest_failed">Package checksum mismatch, install cancelled</string>
-    <string name="update_no_asset">This release has no APK attached; download it manually from the release page</string>
+    <string name="update_no_asset">This version can\'t be downloaded in-app; get it from the release page instead</string>
     <string name="update_download">Download the update</string>
     <string name="update_downloading">Downloading %1$d%%</string>
     <string name="update_install">Install now</string>

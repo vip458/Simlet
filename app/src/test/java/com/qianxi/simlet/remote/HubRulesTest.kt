@@ -260,6 +260,29 @@ class HubRulesTest {
     }
 
     @Test
+    fun `没有版本号可比的那条通道按名字比`() {
+        // GitHub 兜底通道拿不到 versionCode，这是它唯一的判法；1.0.4.1 那种「名字多一段、号却没变」的要判对。
+        assertTrue(HubRules.compareNames("1.0.4.1", "1.0.4") > 0)
+        assertTrue(HubRules.compareNames("1.5", "1.0.4.1") > 0)
+        assertEquals(0, HubRules.compareNames("v1.0.4.1", "1.0.4.1"))
+        assertFalse(HubRules.compareNames("1.0.4", "1.0.4.1") > 0)
+        // 预发布后缀先截掉再比，段里不是数字按 0 处理，不把解析失败变成「有更新」。
+        assertTrue(HubRules.compareNames("1.1.0-beta2", "1.0.9") > 0)
+        assertEquals(0, HubRules.compareNames("1.0.x", "1.0"))
+    }
+
+    @Test
+    fun `没登记摘要就不算有摘要`() {
+        assertFalse(HubRules.hasDigest(""))
+        assertFalse(HubRules.hasDigest("   "))
+        // 形状不对（63 位、带别的前缀）也不算：宁可退回「去发布页手动下」，不要下完没得比。
+        assertFalse(HubRules.hasDigest("e10adc3949ba59abbe56e057f20f883d"))
+        assertFalse(HubRules.hasDigest("0".repeat(63)))
+        assertTrue(HubRules.hasDigest("a".repeat(64)))
+        assertTrue(HubRules.hasDigest(" " + "AB".let { it.repeat(32) } + " "))
+    }
+
+    @Test
     fun `版本区间两端都留空等于不限`() {
         assertTrue(HubRules.inRange(3, 0, 0))
         assertTrue(HubRules.inRange(3, 3, 0))
